@@ -1,0 +1,89 @@
+<%@ Master Language="C#" CodeFile="Site.master.cs" Inherits="SiteMaster" %>
+<!DOCTYPE html>
+<html lang="en">
+<head runat="server">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Family Movies</title>
+    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/site.css") %>?v=1" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%F0%9F%8D%BF%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<div class="app">
+
+    <%-- Side navigation. On a narrow screen the CSS turns this column into a
+         band across the top of the page and the links wrap onto as many rows
+         as they need. --%>
+    <aside class="sidenav" id="sidenav">
+
+        <div class="brand">
+            <a href="<%= ResolveUrl("~/Default.aspx") %>">
+                <span class="brand-mark" aria-hidden="true">&#127871;</span>
+                <span class="brand-text"><%= H(SiteName) %></span>
+            </a>
+        </div>
+
+        <% if (CurrentUser != null) { %>
+        <div class="whoami">
+            <span class="avatar" aria-hidden="true"><%= H(Initials) %></span>
+            <span class="whoami-text">
+                <strong><%= H(CurrentUser.DisplayName) %></strong>
+                <small><%= CurrentUser.IsAdmin ? "Administrator" : "Family member" %></small>
+            </span>
+        </div>
+
+        <nav class="nav" aria-label="Main">
+            <ul class="nav-list">
+                <li><a class="<%= NavClass("Default.aspx") %>" href="<%= ResolveUrl("~/Default.aspx") %>">
+                    <span class="nav-icon" aria-hidden="true">&#127968;</span>What's New</a></li>
+                <li><a class="<%= NavClass("AddMovie.aspx") %>" href="<%= ResolveUrl("~/AddMovie.aspx") %>">
+                    <span class="nav-icon" aria-hidden="true">&#10133;</span>Add a Movie</a></li>
+                <li><a class="<%= NavClass("Movies.aspx") %>" href="<%= ResolveUrl("~/Movies.aspx") %>">
+                    <span class="nav-icon" aria-hidden="true">&#127916;</span>Movie Library</a></li>
+                <li><a class="<%= NavClass("MyRatings.aspx") %>" href="<%= ResolveUrl("~/MyRatings.aspx") %>">
+                    <span class="nav-icon" aria-hidden="true">&#11088;</span>My Ratings</a></li>
+                <li><a class="<%= NavClass("Family.aspx") %>" href="<%= ResolveUrl("~/Family.aspx") %>">
+                    <span class="nav-icon" aria-hidden="true">&#128106;</span>Family</a></li>
+                <% if (CurrentUser.IsAdmin) { %>
+                <li><a class="<%= NavClass("Users.aspx") %>" href="<%= ResolveUrl("~/Admin/Users.aspx") %>">
+                    <span class="nav-icon" aria-hidden="true">&#128273;</span>Members
+                    <% if (PendingApprovals > 0) { %><span class="badge"><%= PendingApprovals %></span><% } %>
+                </a></li>
+                <% } %>
+                <li><a class="<%= NavClass("Account.aspx") %>" href="<%= ResolveUrl("~/Account.aspx") %>">
+                    <span class="nav-icon" aria-hidden="true">&#9881;</span>My Account</a></li>
+                <li><a class="nav-link nav-signout" href="<%= ResolveUrl("~/Logout.aspx") %>">
+                    <span class="nav-icon" aria-hidden="true">&#128682;</span>Sign Out</a></li>
+            </ul>
+        </nav>
+        <% } else { %>
+        <nav class="nav" aria-label="Main">
+            <ul class="nav-list">
+                <li><a class="<%= NavClass("Login.aspx") %>" href="<%= ResolveUrl("~/Login.aspx") %>">
+                    <span class="nav-icon" aria-hidden="true">&#128273;</span>Sign In</a></li>
+                <li><a class="<%= NavClass("Register.aspx") %>" href="<%= ResolveUrl("~/Register.aspx") %>">
+                    <span class="nav-icon" aria-hidden="true">&#10133;</span>Request an Account</a></li>
+            </ul>
+        </nav>
+        <% } %>
+
+    </aside>
+
+    <main class="content" id="main">
+        <% if (!String.IsNullOrEmpty(FlashMessage)) { %>
+        <div class="alert alert-<%= H(FlashKind) %>" role="status"><%= H(FlashMessage) %></div>
+        <% } %>
+
+        <asp:ContentPlaceHolder ID="MainContent" runat="server" />
+
+        <footer class="site-footer">
+            <%= H(SiteName) %> &middot; a private movie list for the family.
+            Film details courtesy of <a href="https://www.omdbapi.com/" rel="noopener noreferrer" target="_blank">OMDb</a>.
+        </footer>
+    </main>
+
+</div>
+</body>
+</html>

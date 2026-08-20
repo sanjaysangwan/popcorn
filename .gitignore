@@ -1,0 +1,18 @@
+# The Access database holds real family data - it is created on the server by
+# Setup.aspx and must never be committed.
+App_Data/*.mdb
+App_Data/*.accdb
+App_Data/*.ldb
+App_Data/*.laccdb
+
+# Local build/editor noise
+bin/
+obj/
+*.user
+*.suo
+.vs/
+Thumbs.db
+.DS_Store
+
+# Output from Tests/check.sh
+.check/
