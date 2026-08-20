@@ -76,6 +76,26 @@ public static class DatabaseInstaller
         return m.Success ? m.Groups[1].Value.Trim() : "";
     }
 
+    /// <summary>The OLE DB provider named by the connection string.</summary>
+    public static string ProviderName()
+    {
+        Match m = Regex.Match(Db.ConnectionString, @"Provider\s*=\s*([^;]+)",
+                              RegexOptions.IgnoreCase);
+        return m.Success ? m.Groups[1].Value.Trim() : "";
+    }
+
+    /// <summary>
+    /// ADOX.Catalog.Create is far pickier than the runtime connection string:
+    /// hand it anything beyond Provider and Data Source - "Persist Security
+    /// Info" being the classic - and it answers "Multiple-step OLE DB operation
+    /// generated errors", which says nothing about the real cause. So the
+    /// creation string is rebuilt from just those two values.
+    /// </summary>
+    public static string CreationConnectionString()
+    {
+        return "Provider=" + ProviderName() + ";Data Source=" + DatabaseFilePath() + ";";
+    }
+
     public static bool DatabaseFileExists()
     {
         string path = DatabaseFilePath();
@@ -96,7 +116,22 @@ public static class DatabaseInstaller
 
         string folder = Path.GetDirectoryName(path);
         if (!String.IsNullOrEmpty(folder) && !Directory.Exists(folder))
-            Directory.CreateDirectory(folder);
+        {
+            try { Directory.CreateDirectory(folder); }
+            catch (Exception ex)
+            {
+                return "The folder " + folder + " does not exist and could not be created: " +
+                       ex.Message;
+            }
+        }
+
+        // Checked up front, because a folder Jet cannot write to produces a
+        // completely misleading error from ADOX rather than a permissions one.
+        string folderError = ServerInfo.FolderWriteError(folder);
+        if (folderError != null)
+            return folderError + " Grant that account Modify permission on the folder - on " +
+                   "DiscountASP.NET this is done from the Control Panel, not over FTP - then " +
+                   "run this page again.";
 
         Type catalogType = Type.GetTypeFromProgID("ADOX.Catalog");
         if (catalogType == null)
@@ -110,14 +145,12 @@ public static class DatabaseInstaller
         {
             catalog = Activator.CreateInstance(catalogType);
             catalogType.InvokeMember("Create", BindingFlags.InvokeMethod, null, catalog,
-                                     new object[] { Db.ConnectionString });
+                                     new object[] { CreationConnectionString() });
             return null;
         }
         catch (Exception ex)
         {
-            Exception root = ex;
-            while (root.InnerException != null) root = root.InnerException;
-            return "Creating the database file failed: " + root.Message;
+            return "Creating the database file failed: " + ServerInfo.Explain(ex) + " " + Advice();
         }
         finally
         {
@@ -159,6 +192,28 @@ public static class DatabaseInstaller
             }
         }
         return log;
+    }
+
+    /// <summary>The three things that actually cause a failed Create, in order.</summary>
+    private static string Advice()
+    {
+        string provider = ProviderName();
+        List<string> hints = new List<string>();
+
+        if (provider.StartsWith("Microsoft.Jet", StringComparison.OrdinalIgnoreCase)
+            && ServerInfo.Is64BitProcess)
+            hints.Add("this application pool is 64-bit and the Jet provider only exists in " +
+                      "32-bit, so either switch the pool to 32-bit or move to the ACE provider " +
+                      "and an .accdb file");
+
+        if (!ServerInfo.HasProvider(provider))
+            hints.Add("the provider '" + provider + "' is not among those registered on this " +
+                      "server - the list further down this page shows what is");
+
+        hints.Add("the account the site runs as (" + ServerInfo.ApplicationIdentity + ") may " +
+                  "not have Modify permission on the folder");
+
+        return "Most likely: " + String.Join("; or ", hints.ToArray()) + ".";
     }
 
     private static string Describe(string statement)

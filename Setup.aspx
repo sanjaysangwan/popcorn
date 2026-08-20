@@ -23,13 +23,44 @@
 <div class="panel">
     <h2>Where things stand</h2>
     <ul class="detail-facts">
-        <li><strong>Provider</strong> <%= H(ProviderName) %></li>
+        <li><strong>Provider</strong> <%= H(ProviderName) %>
+            <%= ProviderInstalled ? "" : " &mdash; NOT registered on this server" %></li>
         <li><strong>Database</strong> <%= H(DatabaseFile) %></li>
         <li><strong>File exists</strong> <%= FileExists ? "yes" : "no - it will be created below" %></li>
         <li><strong>App_Data</strong> <%= H(DataFolderState) %></li>
         <li><strong>Tables</strong> <%= Installed ? "Users, Movies and Ratings are present" : "not created yet" %></li>
         <li><strong>OMDb key</strong> <%= OmdbClient.IsConfigured ? "configured" : "not set - lookups are off" %></li>
     </ul>
+</div>
+
+<div class="panel">
+    <h2>This server</h2>
+    <ul class="detail-facts">
+        <li><strong>Process</strong> <%= H(Bitness) %>
+            <%= ShowJetBitnessWarning ? " &mdash; the Jet provider is 32-bit only, so this will not work" : "" %></li>
+        <li><strong>Runs as</strong> <%= H(Identity) %></li>
+        <li><strong>ADOX</strong> <%= AdoxAvailable ? "registered - the database file can be created here"
+                                                   : "not registered - upload an empty database instead" %></li>
+    </ul>
+
+    <p class="hint">
+        <strong>Runs as</strong> is the Windows account that needs Modify permission on the
+        <code>App_Data</code> folder. FTP cannot grant that - it is set from the
+        DiscountASP.NET Control Panel.
+    </p>
+
+    <h3>OLE DB providers registered here</h3>
+    <ul class="detail-facts">
+        <asp:Repeater ID="rptProviders" runat="server">
+            <ItemTemplate><li><%# H(Convert.ToString(Container.DataItem)) %></li></ItemTemplate>
+        </asp:Repeater>
+    </ul>
+    <p class="hint">
+        Your connection string has to name one of these. If neither
+        <code>Microsoft.Jet.OLEDB.4.0</code> nor <code>Microsoft.ACE.OLEDB.12.0</code> is on the
+        list, ask support which one this server has - the list only shows providers built for a
+        <%= H(Bitness) %> process.
+    </p>
 </div>
 
 <% if (Log.Count > 0) { %>

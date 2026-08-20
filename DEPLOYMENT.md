@@ -67,15 +67,26 @@ names IIS treats specially.
 
 ## 3. Make `App_Data` writable
 
-Access needs to write both the database file **and** a lock file next to it,
-so the *folder* needs write permission, not just the file.
+This is the step that trips most deployments up, so do it before running setup.
 
-DiscountASP.NET Control Panel → **File Manager** (or **Permissions**) → set
-write permission on `App_Data`. Their knowledge base calls this "setting write
-permissions on a folder"; `App_Data` is often writable already.
+Access needs to write the database file **and** a lock file (`.ldb`/`.laccdb`)
+next to it, so the *folder* needs write permission, not just the file. FTP
+cannot grant that — file permissions are an NTFS setting, and on shared
+hosting they are set from the hosting control panel.
 
-`Setup.aspx` tells you whether it worked — it writes and deletes a probe file
-and reports **writable** or the exact error.
+On DiscountASP.NET this lives in the Control Panel under the file/permission
+tools, not in your FTP client. Grant **Modify** (read + write) on `App_Data`.
+
+You do not have to guess which account to grant it to. Open `Setup.aspx` and
+read the **This server** panel — the **Runs as** line names the exact Windows
+account the site executes as, and the **App_Data** line writes and deletes a
+probe file, reporting either `writable` or the precise failure including that
+account name.
+
+If the permission cannot be granted for some reason, the other way out is to
+put the database somewhere that already is writable: change `Data Source` in
+the connection string to that folder's path. Nothing else in the site cares
+where the file lives.
 
 ---
 
@@ -85,9 +96,11 @@ Browse to `https://yoursite.com/Setup.aspx`. It shows you:
 
 * which provider the connection string names,
 * where it expects the database file and whether it exists,
-* whether `App_Data` is writable,
+* whether `App_Data` is writable, and which Windows account the site runs as,
 * whether the tables are there,
-* whether the OMDb key is configured.
+* whether the OMDb key is configured,
+* whether the process is 32- or 64-bit, whether ADOX is registered, and every
+  OLE DB provider actually installed on the server.
 
 Then:
 
@@ -146,6 +159,22 @@ now and then. Nobody is signed in at 3am, so any time is a good time.
 machine."**
 The application pool is running 64-bit. Either switch it to 32-bit in the
 Control Panel, or move to `.accdb` and the ACE provider.
+
+**"Multiple-step OLE DB operation generated errors. Check each OLE DB status
+value, if available. No work was done."**
+This comes from the database *file* creation step, and it is a generic OLE DB
+failure rather than a specific one. In order of likelihood:
+
+1. `App_Data` is not writable by the account on the **Runs as** line — see
+   step 3. This is by far the most common cause, and Setup now checks it
+   before it even calls ADOX, so if you are still seeing this message the
+   probe passed and the cause is one of the two below.
+2. The application pool is 64-bit and the connection string names Jet, which
+   only exists as a 32-bit provider. The **This server** panel flags this
+   explicitly. Switch the pool to 32-bit, or move to ACE and `.accdb`.
+3. The provider in the connection string is not installed. The **This server**
+   panel lists every OLE DB provider registered for this process — the one
+   you named has to appear there.
 
 **"Operation must use an updateable query" / "cannot open for writing"**
 `App_Data` is not writable. Fix the folder permission — see step 3.

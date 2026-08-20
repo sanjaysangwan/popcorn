@@ -28,6 +28,22 @@ public partial class SetupPage : PageBase
     public string DatabaseFile { get; private set; }
     public string ProviderName { get; private set; }
     public string DataFolderState { get; private set; }
+    public string DataFolder { get; private set; }
+    public string Bitness { get; private set; }
+    public string Identity { get; private set; }
+    public bool AdoxAvailable { get; private set; }
+    public bool ProviderInstalled { get; private set; }
+    public List<string> Providers = new List<string>();
+
+    /// <summary>Jet has no 64-bit build, so a 64-bit pool can never load it.</summary>
+    public bool ShowJetBitnessWarning
+    {
+        get
+        {
+            return ServerInfo.Is64BitProcess &&
+                   (ProviderName ?? "").StartsWith("Microsoft.Jet", StringComparison.OrdinalIgnoreCase);
+        }
+    }
 
     private static string SetupKey
     {
@@ -81,9 +97,21 @@ public partial class SetupPage : PageBase
     private void Refresh()
     {
         DatabaseFile = DatabaseInstaller.DatabaseFilePath();
+        DataFolder = String.IsNullOrEmpty(DatabaseFile) ? "" : Path.GetDirectoryName(DatabaseFile);
         FileExists = DatabaseInstaller.DatabaseFileExists();
         ProviderName = ReadProvider();
-        DataFolderState = DescribeDataFolder();
+
+        string folderError = ServerInfo.FolderWriteError(DataFolder);
+        DataFolderState = folderError ?? "writable";
+
+        Bitness = ServerInfo.Bitness;
+        Identity = ServerInfo.ApplicationIdentity;
+        AdoxAvailable = ServerInfo.AdoxAvailable;
+        Providers = ServerInfo.OleDbProviders();
+        ProviderInstalled = ServerInfo.HasProvider(ProviderName);
+
+        rptProviders.DataSource = Providers;
+        rptProviders.DataBind();
 
         Installed = Db.IsInstalled();
         UserCount = 0;
@@ -182,23 +210,4 @@ public partial class SetupPage : PageBase
         catch (Exception ex) { return "(unreadable: " + ex.Message + ")"; }
     }
 
-    /// <summary>Access needs to write to the folder, not just the file, for its lock file.</summary>
-    private string DescribeDataFolder()
-    {
-        try
-        {
-            string folder = Path.GetDirectoryName(DatabaseFile);
-            if (String.IsNullOrEmpty(folder)) return "unknown";
-            if (!Directory.Exists(folder)) return "missing (" + folder + ")";
-
-            string probe = Path.Combine(folder, "write-test-" + Guid.NewGuid().ToString("N") + ".tmp");
-            File.WriteAllText(probe, "ok");
-            File.Delete(probe);
-            return "writable";
-        }
-        catch (Exception ex)
-        {
-            return "NOT writable - " + ex.Message;
-        }
-    }
 }
