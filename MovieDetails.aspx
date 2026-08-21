@@ -37,6 +37,8 @@
 
         <%= PlotMarkup %>
 
+        <%= Ui.TagList(Film, true) %>
+
         <ul class="detail-facts"><%= FactsMarkup %></ul>
     </div>
 </div>
@@ -72,6 +74,15 @@
             </asp:PlaceHolder>
         </div>
     </form>
+</div>
+
+<div class="panel">
+    <h2>Categories</h2>
+    <p class="hint">
+        Tick everything that fits, or invent a new one. Categories are shared
+        across the whole library and can be searched.
+    </p>
+    <%= Ui.TagEditor(Film, AllTags) %>
 </div>
 
 <div class="panel">

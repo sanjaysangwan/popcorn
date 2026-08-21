@@ -61,3 +61,24 @@ CREATE TABLE Ratings (
 -- One rating per family member per movie. The headline score for a film is
 -- always AVG(Stars) over these rows - it is never stored anywhere.
 CREATE UNIQUE INDEX IX_Ratings_MovieUser ON Ratings (MovieId, UserId);
+
+CREATE TABLE Tags (
+    TagId           AUTOINCREMENT PRIMARY KEY,
+    TagName         TEXT(50) NOT NULL,
+    TagKey          TEXT(50) NOT NULL,
+    CreatedByUserId LONG,
+    CreatedUtc      DATETIME NOT NULL
+);
+
+-- TagKey is the lower-cased name, so "Christmas" and "christmas" are the
+-- same category however somebody types it.
+CREATE UNIQUE INDEX IX_Tags_Key ON Tags (TagKey);
+
+CREATE TABLE MovieTags (
+    MovieTagId      AUTOINCREMENT PRIMARY KEY,
+    MovieId         LONG     NOT NULL,
+    TagId           LONG     NOT NULL,
+    AddedUtc        DATETIME NOT NULL
+);
+
+CREATE UNIQUE INDEX IX_MovieTags ON MovieTags (MovieId, TagId);

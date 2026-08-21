@@ -42,6 +42,8 @@
                     <span class="nav-icon" aria-hidden="true">&#10133;</span>Add a Movie</a></li>
                 <li><a class="<%= NavClass("Movies.aspx") %>" href="<%= ResolveUrl("~/Movies.aspx") %>">
                     <span class="nav-icon" aria-hidden="true">&#127916;</span>Movie Library</a></li>
+                <li><a class="<%= NavClass("Tags.aspx") %>" href="<%= ResolveUrl("~/Tags.aspx") %>">
+                    <span class="nav-icon" aria-hidden="true">&#127991;</span>Categories</a></li>
                 <li><a class="<%= NavClass("MyRatings.aspx") %>" href="<%= ResolveUrl("~/MyRatings.aspx") %>">
                     <span class="nav-icon" aria-hidden="true">&#11088;</span>My Ratings</a></li>
                 <li><a class="<%= NavClass("Family.aspx") %>" href="<%= ResolveUrl("~/Family.aspx") %>">

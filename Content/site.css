@@ -381,3 +381,33 @@ table.grid th { color: var(--text-dim); font-size: .78rem; text-transform: upper
 .watched-form { margin-top: .6rem; }
 .movie-card.is-watched { opacity: .72; }
 .movie-card.is-watched:hover { opacity: 1; }
+
+/* ----- categories (tags) ------------------------------------------------- */
+
+.tag-list { margin: .5rem 0 .25rem; display: flex; flex-wrap: wrap; gap: .3rem; }
+.tag {
+    display: inline-block; padding: .12rem .5rem; border-radius: 999px;
+    background: var(--bg-input); border: 1px solid var(--line);
+    color: var(--text-dim); font-size: .74rem; font-weight: 600;
+    text-decoration: none; line-height: 1.5;
+}
+a.tag:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+.tag.is-current { background: var(--accent); border-color: var(--accent); color: #241800; }
+
+.tag-choices {
+    display: flex; flex-wrap: wrap; gap: .4rem;
+    margin-bottom: 1rem;
+}
+.tag-choice {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .3rem .6rem; border-radius: 999px;
+    background: var(--bg-input); border: 1px solid var(--line);
+    font-size: .82rem; font-weight: 600; cursor: pointer; margin: 0;
+}
+.tag-choice:hover { border-color: var(--accent); }
+.tag-choice input { width: auto; margin: 0; }
+.tag-editor .field { max-width: 460px; }
+
+.tag-cloud { display: flex; flex-wrap: wrap; gap: .45rem; margin-bottom: 1.25rem; }
+.tag-cloud .tag { font-size: .82rem; padding: .3rem .7rem; }
+.tag-count { opacity: .65; font-weight: 400; margin-left: .3rem; }

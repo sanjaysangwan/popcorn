@@ -6,6 +6,7 @@ public partial class MovieDetailsPage : PageBase
 {
     public Movie Film { get; private set; }
     public List<MovieRating> Ratings = new List<MovieRating>();
+    public List<Tag> AllTags = new List<Tag>();
     public string MyReview { get; private set; }
     public string Message { get; private set; }
     public string MessageKind { get; private set; }
@@ -95,6 +96,13 @@ public partial class MovieDetailsPage : PageBase
         // both in the same field, so take whichever one is not "rate".
         string action = PickAction();
 
+        if (action == "tags")
+        {
+            SaveTags(movieId);
+            Go("~/MovieDetails.aspx?id=" + movieId);
+            return true;
+        }
+
         if (action == "watched" || action == "unwatched")
         {
             string watchedMessage;
@@ -162,6 +170,30 @@ public partial class MovieDetailsPage : PageBase
         return parts.Length > 0 ? parts[0].Trim() : "";
     }
 
+    /// <summary>
+    /// Stores exactly the categories that were ticked, plus anything typed
+    /// into the new-categories box. Unticking removes.
+    /// </summary>
+    private void SaveTags(int movieId)
+    {
+        List<string> names = new List<string>();
+
+        string[] ticked = Request.Form.GetValues("tag");
+        if (ticked != null)
+            foreach (string name in ticked)
+            {
+                string clean = TagRepository.Clean(name);
+                if (clean.Length > 0) names.Add(clean);
+            }
+
+        names.AddRange(TagRepository.SplitNames(Request.Form["newTags"]));
+
+        TagRepository.SetMovieTags(movieId, names, CurrentUser.UserId);
+        SetFlash(names.Count == 0
+                     ? "Categories cleared."
+                     : "Categories saved.", "success");
+    }
+
     private void RefreshFromOmdb(int movieId)
     {
         Movie film = MovieRepository.GetById(movieId, CurrentUser.UserId);
@@ -208,6 +240,8 @@ public partial class MovieDetailsPage : PageBase
         {
             phNoRatings.Visible = true;
         }
+
+        AllTags = TagRepository.All();
 
         MovieRating mine = RatingRepository.Get(movieId, CurrentUser.UserId);
         if (mine != null) MyReview = mine.Review;

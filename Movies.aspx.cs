@@ -6,6 +6,45 @@ public partial class MoviesPage : PageBase
     public string Term { get; private set; }
     public string Sort { get; private set; }
     public string Show { get; private set; }
+
+    /// <summary>The category the library is narrowed to, or "" for all of them.</summary>
+    public string TagKey { get; private set; }
+
+    /// <summary>The row of category chips above the list, current one highlighted.</summary>
+    public string TagCloud
+    {
+        get
+        {
+            List<Tag> tags = TagRepository.All();
+            if (tags.Count == 0) return "";
+
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+
+            sb.Append("<a class=\"tag").Append(TagKey.Length == 0 ? " is-current" : "")
+              .Append("\" href=\"").Append(Attr(BaseUrl(""))).Append("\">All categories</a>");
+
+            foreach (Tag tag in tags)
+            {
+                if (tag.MovieCount == 0 && !String.Equals(tag.TagKey, TagKey)) continue;
+
+                sb.Append("<a class=\"tag")
+                  .Append(String.Equals(tag.TagKey, TagKey, StringComparison.OrdinalIgnoreCase)
+                              ? " is-current" : "")
+                  .Append("\" href=\"").Append(Attr(BaseUrl(tag.TagKey))).Append("\">")
+                  .Append(H(tag.TagName))
+                  .Append("<span class=\"tag-count\">").Append(tag.MovieCount).Append("</span></a>");
+            }
+
+            return sb.ToString();
+        }
+    }
+
+    /// <summary>This page's URL with the same search and ordering, for a given category.</summary>
+    private string BaseUrl(string tagKey)
+    {
+        return "Movies.aspx?q=" + Url(Term) + "&sort=" + Url(Sort) +
+               "&show=" + Url(Show) + "&tag=" + Url(tagKey);
+    }
     public int Count { get; private set; }
 
     /// <summary>"still to watch" / "already watched", for the count line.</summary>
@@ -23,6 +62,8 @@ public partial class MoviesPage : PageBase
     {
         get
         {
+            if (TagKey.Length > 0)
+                return "No movies in that category yet.";
             if (Show == MovieRepository.ShowWatched)
                 return "Nothing has been marked as watched yet.";
             if (!String.IsNullOrEmpty(Term))
@@ -60,8 +101,9 @@ public partial class MoviesPage : PageBase
         Sort = (Request.QueryString["sort"] ?? "recent").Trim().ToLowerInvariant();
         if (Sort != "rating" && Sort != "title") Sort = "recent";
         Show = MovieRepository.CleanShow(Request.QueryString["show"]);
+        TagKey = Tag.ToKey(Request.QueryString["tag"]);
 
-        ReturnUrl = "Movies.aspx?q=" + Url(Term) + "&sort=" + Url(Sort) + "&show=" + Url(Show);
+        ReturnUrl = BaseUrl(TagKey);
 
         string message;
         bool ok;
@@ -73,7 +115,7 @@ public partial class MoviesPage : PageBase
             return;
         }
 
-        List<Movie> movies = MovieRepository.Search(CurrentUser.UserId, Term, Sort, Show);
+        List<Movie> movies = MovieRepository.Search(CurrentUser.UserId, Term, Sort, Show, TagKey);
         Count = movies.Count;
 
         WatchedCount = MovieRepository.Search(

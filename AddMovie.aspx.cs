@@ -112,7 +112,14 @@ public partial class AddMoviePage : PageBase
             }
 
             int movieId = MovieRepository.Add(movie, CurrentUser.UserId);
-            SetFlash("Added " + movie.Title + ". Now give it your own star rating.", "success");
+
+            // Put it straight onto any shelf whose name matches an OMDb genre,
+            // so a new film is not completely uncategorised.
+            try { TagRepository.ApplyGenreTags(movieId, movie.Genre); }
+            catch { /* categories are a convenience, never a reason to fail an add */ }
+
+            SetFlash("Added " + movie.Title + ". Now give it your own star rating, " +
+                     "and check its categories.", "success");
             Go("~/MovieDetails.aspx?id=" + movieId);
         }
         catch (Exception ex)

@@ -193,6 +193,62 @@ public static class Smoke
 
         MarkWatched(movies, 1);   // leave the fixture as the later tests expect
 
+        // --- categories -------------------------------------------------------
+        System.Data.DataTable tagRows = TagTable();
+        AddTag(tagRows, 10, "Comedy");
+        AddTag(tagRows, 11, "Christmas");
+        AddTag(tagRows, 12, "Real Life Story");
+
+        System.Data.DataTable links = LinkTable();
+        AddLink(links, 2, 10);   // The Princess Bride -> Comedy
+        AddLink(links, 2, 11);   // and Christmas
+        AddLink(links, 1, 12);   // Casablanca -> Real Life Story
+        AddLink(links, 3, 99);   // a link to a category that no longer exists
+
+        List<Movie> tagged = MovieRepository.AttachTags(
+            MovieRepository.Assemble(movies, ratings, users, 3), links, tagRows);
+
+        Check(Find(tagged, 2).Tags.Count == 2, "a film carries every category it is in");
+        Check(Find(tagged, 2).Tags[0].TagName == "Christmas", "categories come back in name order");
+        Check(Find(tagged, 1).Tags.Count == 1, "another film carries its own");
+        Check(Find(tagged, 3).Tags.Count == 0, "a link to a deleted category is ignored");
+
+        Check(Find(tagged, 2).HasTag("christmas"), "matching a category ignores case");
+        Check(!Find(tagged, 2).HasTag("sad"), "a category it is not in does not match");
+        Check(!Find(tagged, 2).HasTag(""), "an empty category name matches nothing");
+
+        // Filtering the library down to one shelf.
+        Check(MovieRepository.WithTag(tagged, "comedy").Count == 1, "filtering by category");
+        Check(MovieRepository.WithTag(tagged, "Christmas")[0].MovieId == 2, "filtering ignores case");
+        Check(MovieRepository.WithTag(tagged, "nonexistent").Count == 0, "an unused category shows nothing");
+        Check(MovieRepository.WithTag(tagged, "").Count == 3, "no category filter shows everything");
+
+        // Categories are searchable from the ordinary search box.
+        Check(MovieRepository.Match(tagged, "christmas").Count == 1, "the search box finds a category");
+        Check(MovieRepository.Match(tagged, "real life").Count == 1, "and matches part of one");
+
+        // --- category names ---------------------------------------------------
+        Check(Tag.ToKey("  Christmas  ") == "christmas", "the key is trimmed and lower-cased");
+        Check(Tag.ToKey(null) == "", "a missing name has an empty key");
+        Check(TagRepository.Clean("  Real   Life  Story ") == "Real Life Story", "runs of spaces collapse");
+        Check(TagRepository.Clean(",Comedy,") == "Comedy", "stray separators are stripped");
+        Check(TagRepository.Clean(new String('x', 80)).Length == 50, "an over-long name is cut to fit the column");
+
+        List<string> split = TagRepository.SplitNames("Comedy, Christmas ; Comedy,,  Sad ");
+        Check(split.Count == 3, "several categories can be typed at once");
+        Check(split[0] == "Comedy" && split[2] == "Sad", "in the order they were typed");
+        Check(TagRepository.SplitNames("").Count == 0, "an empty box adds nothing");
+        Check(TagRepository.SplitNames(null).Count == 0, "a missing box adds nothing");
+        Check(TagRepository.SplitNames(" , ; ,").Count == 0, "separators alone add nothing");
+
+        // The starting shelf is what was asked for.
+        Check(Has(TagRepository.DefaultTags, "Comedy") && Has(TagRepository.DefaultTags, "Sad") &&
+              Has(TagRepository.DefaultTags, "Romantic") && Has(TagRepository.DefaultTags, "Family") &&
+              Has(TagRepository.DefaultTags, "Christmas") && Has(TagRepository.DefaultTags, "SciFi") &&
+              Has(TagRepository.DefaultTags, "Historical") &&
+              Has(TagRepository.DefaultTags, "Real Life Story"),
+              "every requested category ships as a default");
+
         // --- OMDb responses ---------------------------------------------------
         // A real search payload. JavaScriptSerializer decodes the nested array
         // as an ArrayList, not object[], and casting to object[] is what made
@@ -264,6 +320,40 @@ public static class Smoke
 
         Console.WriteLine(failures == 0 ? "\nAll checks passed." : "\n" + failures + " FAILED");
         return failures == 0 ? 0 : 1;
+    }
+
+    static System.Data.DataTable TagTable()
+    {
+        System.Data.DataTable t = new System.Data.DataTable();
+        t.Columns.Add("TagId", typeof(object));
+        t.Columns.Add("TagName", typeof(object));
+        t.Columns.Add("TagKey", typeof(object));
+        return t;
+    }
+
+    static void AddTag(System.Data.DataTable t, int id, string name)
+    {
+        t.Rows.Add(new object[] { id, name, name.ToLowerInvariant() });
+    }
+
+    static System.Data.DataTable LinkTable()
+    {
+        System.Data.DataTable t = new System.Data.DataTable();
+        t.Columns.Add("MovieId", typeof(object));
+        t.Columns.Add("TagId", typeof(object));
+        return t;
+    }
+
+    static void AddLink(System.Data.DataTable t, int movieId, int tagId)
+    {
+        t.Rows.Add(new object[] { movieId, tagId });
+    }
+
+    static bool Has(string[] names, string wanted)
+    {
+        foreach (string name in names)
+            if (String.Equals(name, wanted, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
     }
 
     static FamilyUser Member(int id)

@@ -28,10 +28,67 @@ public static class MovieRepository
     /// <summary>Every movie, with the family verdict and the viewer's own score attached.</summary>
     private static List<Movie> LoadAll(int viewerUserId)
     {
-        return Assemble(Db.Query(SelectMovies),
-                        Db.Query("SELECT MovieId, UserId, Stars FROM Ratings"),
-                        Db.Query("SELECT UserId, DisplayName FROM Users"),
-                        viewerUserId);
+        List<Movie> movies = Assemble(Db.Query(SelectMovies),
+                                      Db.Query("SELECT MovieId, UserId, Stars FROM Ratings"),
+                                      Db.Query("SELECT UserId, DisplayName FROM Users"),
+                                      viewerUserId);
+
+        return AttachTags(movies, TagRepository.AllLinks(), TagRepository.AllTagRows());
+    }
+
+    /// <summary>
+    /// Hangs the categories on an already-assembled list. Kept apart from
+    /// <see cref="Assemble"/> so each does one job and both can be tested.
+    /// </summary>
+    public static List<Movie> AttachTags(List<Movie> movies, DataTable linkRows, DataTable tagRows)
+    {
+        if (movies == null) return new List<Movie>();
+        if (linkRows == null || tagRows == null) return movies;
+
+        Dictionary<int, Tag> tags = new Dictionary<int, Tag>();
+        foreach (DataRow row in tagRows.Rows)
+        {
+            Tag tag = Tag.FromRow(row);
+            tags[tag.TagId] = tag;
+        }
+
+        Dictionary<int, List<Tag>> byMovie = new Dictionary<int, List<Tag>>();
+        foreach (DataRow row in linkRows.Rows)
+        {
+            int movieId = Db.Int(row, "MovieId");
+            int tagId = Db.Int(row, "TagId");
+            if (!tags.ContainsKey(tagId)) continue;
+
+            if (!byMovie.ContainsKey(movieId)) byMovie[movieId] = new List<Tag>();
+            byMovie[movieId].Add(tags[tagId]);
+        }
+
+        foreach (Movie movie in movies)
+        {
+            if (!byMovie.ContainsKey(movie.MovieId)) continue;
+
+            List<Tag> theirs = byMovie[movie.MovieId];
+            theirs.Sort(delegate(Tag a, Tag b)
+            {
+                return String.Compare(a.TagName, b.TagName, StringComparison.OrdinalIgnoreCase);
+            });
+            movie.Tags = theirs;
+        }
+
+        return movies;
+    }
+
+    /// <summary>Keeps only the films in a given category.</summary>
+    public static List<Movie> WithTag(List<Movie> movies, string tagKey)
+    {
+        tagKey = Tag.ToKey(tagKey);
+        if (tagKey.Length == 0) return movies;
+
+        List<Movie> kept = new List<Movie>();
+        foreach (Movie movie in movies)
+            if (movie.HasTag(tagKey)) kept.Add(movie);
+
+        return kept;
     }
 
     /// <summary>
@@ -142,7 +199,16 @@ public static class MovieRepository
     /// </summary>
     public static List<Movie> Search(int viewerUserId, string term, string sort, string show)
     {
-        return SortBy(Match(OnlyWatched(LoadAll(viewerUserId), show), term), sort);
+        return Search(viewerUserId, term, sort, show, null);
+    }
+
+    /// <summary>The library, additionally narrowed to one category.</summary>
+    public static List<Movie> Search(int viewerUserId, string term, string sort, string show,
+                                     string tagKey)
+    {
+        List<Movie> movies = OnlyWatched(LoadAll(viewerUserId), show);
+        movies = WithTag(movies, tagKey);
+        return SortBy(Match(movies, term), sort);
     }
 
     /// <summary>Everything the viewer has rated, their own favourites first.</summary>
@@ -205,11 +271,19 @@ public static class MovieRepository
         {
             if (Contains(movie.Title, needle) || Contains(movie.Actors, needle) ||
                 Contains(movie.Director, needle) || Contains(movie.Genre, needle) ||
-                Contains(movie.ReleaseYear, needle))
+                Contains(movie.ReleaseYear, needle) || HasMatchingTag(movie, needle))
                 hits.Add(movie);
         }
 
         return hits;
+    }
+
+    /// <summary>So typing "christmas" in the search box finds the Christmas shelf.</summary>
+    private static bool HasMatchingTag(Movie movie, string needle)
+    {
+        foreach (Tag tag in movie.Tags)
+            if (Contains(tag.TagName, needle)) return true;
+        return false;
     }
 
     private static bool Contains(string haystack, string needle)

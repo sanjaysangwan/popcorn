@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Web;
 
@@ -123,6 +124,8 @@ public static class Ui
         if (!String.IsNullOrEmpty(movie.Plot))
             sb.Append("<p class=\"movie-plot\">").Append(E(Shorten(movie.Plot, 260))).Append("</p>");
 
+        sb.Append(TagList(movie, true));
+
         sb.Append("<p class=\"movie-added\">Added by <strong>")
           .Append(E(String.IsNullOrEmpty(movie.AddedByName) ? "a family member" : movie.AddedByName))
           .Append("</strong></p>");
@@ -167,6 +170,70 @@ public static class Ui
             sb.Append(WatchedForm(movie, returnUrl, true));
 
         sb.Append("</div></article>");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// A film's categories, each one a link that filters the library down to
+    /// that shelf.
+    /// </summary>
+    public static string TagList(Movie movie, bool linked)
+    {
+        if (movie.Tags.Count == 0) return "";
+
+        StringBuilder sb = new StringBuilder();
+        sb.Append("<p class=\"tag-list\">");
+
+        foreach (Tag tag in movie.Tags)
+        {
+            if (linked)
+                sb.Append("<a class=\"tag\" href=\"Movies.aspx?show=all&amp;tag=")
+                  .Append(HttpUtility.UrlEncode(tag.TagKey)).Append("\">")
+                  .Append(E(tag.TagName)).Append("</a>");
+            else
+                sb.Append("<span class=\"tag\">").Append(E(tag.TagName)).Append("</span>");
+        }
+
+        sb.Append("</p>");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// The tag editor: a tick box per existing category, plus a box for
+    /// inventing new ones. Posts the whole set back, so unticking removes.
+    /// </summary>
+    public static string TagEditor(Movie movie, List<Tag> allTags)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        sb.Append("<form class=\"tag-editor\" method=\"post\" action=\"\">");
+        sb.Append(Csrf.Field);
+        sb.Append("<input type=\"hidden\" name=\"action\" value=\"tags\" />");
+        sb.Append("<input type=\"hidden\" name=\"movieId\" value=\"").Append(movie.MovieId).Append("\" />");
+
+        sb.Append("<div class=\"tag-choices\">");
+        foreach (Tag tag in allTags)
+        {
+            string id = "tag-" + tag.TagId;
+            sb.Append("<label class=\"tag-choice\" for=\"").Append(id).Append("\">");
+            sb.Append("<input type=\"checkbox\" id=\"").Append(id)
+              .Append("\" name=\"tag\" value=\"").Append(A(tag.TagName)).Append("\"");
+            if (movie.HasTag(tag.TagKey)) sb.Append(" checked=\"checked\"");
+            sb.Append(" /><span>").Append(E(tag.TagName)).Append("</span></label>");
+        }
+        sb.Append("</div>");
+
+        sb.Append("<div class=\"field\">");
+        sb.Append("<label for=\"newTags\">New categories</label>");
+        sb.Append("<input type=\"text\" id=\"newTags\" name=\"newTags\" maxlength=\"200\" ")
+          .Append("placeholder=\"Rainy Sunday, Grandma&#39;s favourite\" />");
+        sb.Append("<span class=\"hint\">Separate several with commas. They become available ")
+          .Append("for every film.</span>");
+        sb.Append("</div>");
+
+        sb.Append("<button type=\"submit\" class=\"btn btn-primary\">Save categories</button>");
+        sb.Append("</form>");
+
         return sb.ToString();
     }
 

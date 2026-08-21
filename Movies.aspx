@@ -31,6 +31,7 @@
                     <option value="title"  <%= Sort == "title"  ? "selected=\"selected\"" : "" %>>Title</option>
                 </select>
             </div>
+            <input type="hidden" name="tag" value="<%= Attr(TagKey) %>" />
             <button type="submit" class="btn btn-primary">Show</button>
             <% if (!String.IsNullOrEmpty(Term)) { %>
             <a class="btn" href="<%= ResolveUrl("~/Movies.aspx") %>">Clear</a>
@@ -38,6 +39,8 @@
         </div>
     </form>
 </div>
+
+<div class="tag-cloud"><%= TagCloud %></div>
 
 <p class="hint">
     <%= Count %> movie<%= Count == 1 ? "" : "s" %><%= H(ShowCaption) %><%= String.IsNullOrEmpty(Term) ? "" : " matching \"" + H(Term) + "\"" %>.

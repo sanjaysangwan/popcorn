@@ -33,6 +33,7 @@ film details pulled from the free **OMDb** API.
 | `AddMovie.aspx` | members | OMDb search, or add by hand |
 | `Movies.aspx` | members | The library, searchable and sortable, split into still-to-watch and watched |
 | `MovieDetails.aspx` | members | Poster, synopsis, cast, every member's rating, yours |
+| `Tags.aspx` | members | Every category, with counts; renaming and deleting are the administrator's |
 | `MyRatings.aspx` | members | Everything you have scored |
 | `Family.aspx` | members | Who is on the list and how active they are |
 | `Account.aspx` | members | Change your name or password |
@@ -41,12 +42,19 @@ film details pulled from the free **OMDb** API.
 ## How the data fits together
 
 ```
-Users ──< Ratings >── Movies
+Users ──< Ratings >── Movies >── MovieTags ──< Tags
 ```
 
 * `Ratings` has a unique index on `(MovieId, UserId)`, so a member has exactly
   one score per film and rating again updates it rather than stacking up.
 * A film's headline number is `AVG(Stars)` across that film's rows.
+* **Categories** live in their own table rather than a comma-separated column,
+  so "Christmas" typed by one member is the same shelf as "christmas" typed by
+  another, films can be browsed by category, and each one can be counted. A
+  site starts with Comedy, Sad, Romantic, Family, Christmas, SciFi, Historical
+  and Real Life Story; anyone can invent more while tagging a film. A new film
+  is put onto any shelf whose name matches a genre OMDb reported — matching
+  existing categories only, so the family's own shelf stays theirs.
 * Marking a film **watched** retires it from the default library view without
   touching its ratings — it stays under the "Already watched" filter and can
   still be rated. Whoever added a film, and any administrator, can move it

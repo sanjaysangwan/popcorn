@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 
 public class FamilyUser
@@ -58,6 +59,17 @@ public class Movie
     /// </summary>
     public bool IsWatched;
     public DateTime? WatchedUtc;
+
+    /// <summary>Categories this film has been put in. Empty until somebody tags it.</summary>
+    public List<Tag> Tags = new List<Tag>();
+
+    public bool HasTag(string tagKey)
+    {
+        if (String.IsNullOrEmpty(tagKey)) return false;
+        foreach (Tag tag in Tags)
+            if (String.Equals(tag.TagKey, tagKey, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
 
     /// <summary>Average of every family member's stars. 0 when nobody has rated it.</summary>
     public double FamilyAverage;
@@ -170,4 +182,38 @@ public class MemberSummary
     public int RatingsGiven;
     public string AverageText = "-";
     public string Since = "";
+}
+
+/// <summary>
+/// A category a movie can be put in - Comedy, Christmas, Real Life Story, or
+/// anything a family member invents.
+/// </summary>
+public class Tag
+{
+    public int TagId;
+
+    /// <summary>How it is written on screen, e.g. "Real Life Story".</summary>
+    public string TagName = "";
+
+    /// <summary>The lower-cased name, so the same category is never stored twice.</summary>
+    public string TagKey = "";
+
+    /// <summary>How many movies carry it. Only filled in where it is needed.</summary>
+    public int MovieCount;
+
+    public static Tag FromRow(DataRow row)
+    {
+        return new Tag
+        {
+            TagId = Db.Int(row, "TagId"),
+            TagName = Db.Str(row, "TagName"),
+            TagKey = Db.Str(row, "TagKey")
+        };
+    }
+
+    /// <summary>Trims and lower-cases a typed-in name so it matches an existing tag.</summary>
+    public static string ToKey(string name)
+    {
+        return (name ?? "").Trim().ToLowerInvariant();
+    }
 }

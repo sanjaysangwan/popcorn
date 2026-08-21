@@ -215,7 +215,11 @@ public static class Db
             if (_installed && !_migrated)
             {
                 _migrated = true;
-                try { DatabaseInstaller.ApplyMigrations(); }
+                try
+                {
+                    DatabaseInstaller.ApplyMigrations();
+                    TagRepository.SeedDefaults();
+                }
                 catch { /* Setup reports schema problems properly */ }
             }
         }

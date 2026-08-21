@@ -68,7 +68,38 @@ public static class DatabaseInstaller
           )",
 
         // One rating per family member per movie.
-        @"CREATE UNIQUE INDEX IX_Ratings_MovieUser ON Ratings (MovieId, UserId)"
+        @"CREATE UNIQUE INDEX IX_Ratings_MovieUser ON Ratings (MovieId, UserId)",
+
+        @"CREATE TABLE Tags (
+            TagId           AUTOINCREMENT PRIMARY KEY,
+            TagName         TEXT(50) NOT NULL,
+            TagKey          TEXT(50) NOT NULL,
+            CreatedByUserId LONG,
+            CreatedUtc      DATETIME NOT NULL
+          )",
+
+        // TagKey is the lower-cased name, so "Christmas" and "christmas" are
+        // recognised as the same category however somebody types it.
+        @"CREATE UNIQUE INDEX IX_Tags_Key ON Tags (TagKey)",
+
+        @"CREATE TABLE MovieTags (
+            MovieTagId      AUTOINCREMENT PRIMARY KEY,
+            MovieId         LONG     NOT NULL,
+            TagId           LONG     NOT NULL,
+            AddedUtc        DATETIME NOT NULL
+          )",
+
+        @"CREATE UNIQUE INDEX IX_MovieTags ON MovieTags (MovieId, TagId)"
+    };
+
+    /// <summary>
+    /// Tables added after the first release, for databases that predate them.
+    /// Each entry is the table name and the statements that build it.
+    /// </summary>
+    private static readonly string[][] TablesAddedLater = new string[][]
+    {
+        new string[] { "Tags", "Tags", "IX_Tags_Key" },
+        new string[] { "MovieTags", "MovieTags", "IX_MovieTags" }
     };
 
     /// <summary>
@@ -92,6 +123,34 @@ public static class DatabaseInstaller
 
         using (OleDbConnection cn = Db.Open())
         {
+            // Tables first: a database created before tags existed has none.
+            List<string> tables = new List<string>();
+            DataTable tableSchema = cn.GetSchema("Tables");
+            foreach (DataRow row in tableSchema.Rows)
+                tables.Add(Convert.ToString(row["TABLE_NAME"]).ToLowerInvariant());
+
+            foreach (string[] table in TablesAddedLater)
+            {
+                if (tables.Contains(table[0].ToLowerInvariant())) continue;
+
+                foreach (string statement in Ddl)
+                {
+                    if (!MentionsTable(statement, table[0])) continue;
+
+                    try
+                    {
+                        using (OleDbCommand cmd = new OleDbCommand(statement, cn))
+                            cmd.ExecuteNonQuery();
+                        log.Add("Created " + Describe(statement) + ".");
+                    }
+                    catch (OleDbException ex)
+                    {
+                        if (ex.Message.IndexOf("already exists", StringComparison.OrdinalIgnoreCase) < 0)
+                            log.Add("Could not create " + Describe(statement) + ": " + ex.Message);
+                    }
+                }
+            }
+
             List<string> existing = new List<string>();
             DataTable schema = cn.GetSchema("Columns", new string[] { null, null, "Movies", null });
             foreach (DataRow row in schema.Rows)
@@ -115,6 +174,16 @@ public static class DatabaseInstaller
         }
 
         return log;
+    }
+
+    /// <summary>True when a CREATE statement builds this table or an index on it.</summary>
+    private static bool MentionsTable(string statement, string tableName)
+    {
+        return Regex.IsMatch(statement,
+            @"CREATE\s+TABLE\s+" + Regex.Escape(tableName) + @"\b", RegexOptions.IgnoreCase) ||
+               Regex.IsMatch(statement,
+            @"CREATE\s+(UNIQUE\s+)?INDEX\s+\w+\s+ON\s+" + Regex.Escape(tableName) + @"\b",
+            RegexOptions.IgnoreCase);
     }
 
     /// <summary>Full path of the .mdb/.accdb named by the connection string.</summary>
