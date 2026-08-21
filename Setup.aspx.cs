@@ -35,6 +35,10 @@ public partial class SetupPage : PageBase
     public bool ProviderInstalled { get; private set; }
     public List<string> Providers = new List<string>();
 
+    public List<string> UserColumns = new List<string>();
+    public List<string> MovieColumns = new List<string>();
+    public List<string> RatingColumns = new List<string>();
+
     /// <summary>Jet has no 64-bit build, so a 64-bit pool can never load it.</summary>
     public bool ShowJetBitnessWarning
     {
@@ -118,6 +122,19 @@ public partial class SetupPage : PageBase
         if (Installed)
         {
             try { UserCount = UserRepository.Count(); } catch { UserCount = 0; }
+
+            UserColumns = Db.DescribeColumns("Users");
+            MovieColumns = Db.DescribeColumns("Movies");
+            RatingColumns = Db.DescribeColumns("Ratings");
+
+            rptUserColumns.DataSource = UserColumns;
+            rptUserColumns.DataBind();
+            rptMovieColumns.DataSource = MovieColumns;
+            rptMovieColumns.DataBind();
+            rptRatingColumns.DataSource = RatingColumns;
+            rptRatingColumns.DataBind();
+
+            phSchema.Visible = true;
         }
         HasUsers = UserCount > 0;
     }

@@ -176,6 +176,15 @@ failure rather than a specific one. In order of likelihood:
    panel lists every OLE DB provider registered for this process — the one
    you named has to appear there.
 
+**"Data type mismatch in criteria expression"**
+A parameter reached Access as the wrong type. Every parameter is now given an
+explicit OLE DB type rather than an inferred one, which is what caused this:
+a `DateTime` was inferred as `DBTimeStamp` and rejected by a `DATETIME`
+column. Error messages from the database now name the statement that produced
+them, and the **What the database actually contains** panel on `Setup.aspx`
+lists the column types Jet or ACE really created, so a column that came out
+wrong is visible rather than inferred.
+
 **"Operation must use an updateable query" / "cannot open for writing"**
 `App_Data` is not writable. Fix the folder permission — see step 3.
 

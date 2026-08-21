@@ -92,6 +92,34 @@
     </form>
 </div>
 
+<asp:PlaceHolder ID="phSchema" runat="server" Visible="false">
+<div class="panel">
+    <h2>What the database actually contains</h2>
+    <p class="hint">
+        The column types Jet or ACE settled on. If one of these is not what the
+        schema asked for, that is what a later "data type mismatch" is about.
+    </p>
+    <h3>Users</h3>
+    <ul class="detail-facts">
+        <asp:Repeater ID="rptUserColumns" runat="server">
+            <ItemTemplate><li><%# H(Convert.ToString(Container.DataItem)) %></li></ItemTemplate>
+        </asp:Repeater>
+    </ul>
+    <h3>Movies</h3>
+    <ul class="detail-facts">
+        <asp:Repeater ID="rptMovieColumns" runat="server">
+            <ItemTemplate><li><%# H(Convert.ToString(Container.DataItem)) %></li></ItemTemplate>
+        </asp:Repeater>
+    </ul>
+    <h3>Ratings</h3>
+    <ul class="detail-facts">
+        <asp:Repeater ID="rptRatingColumns" runat="server">
+            <ItemTemplate><li><%# H(Convert.ToString(Container.DataItem)) %></li></ItemTemplate>
+        </asp:Repeater>
+    </ul>
+</div>
+</asp:PlaceHolder>
+
 <% if (Installed) { %>
 <div class="panel form-narrow">
     <h2>Step 3 - the administrator account</h2>

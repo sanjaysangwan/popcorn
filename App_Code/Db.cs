@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Data.OleDb;
+using System.Text.RegularExpressions;
 
 /// <summary>
 /// Thin data-access helper over the Microsoft Access database.
@@ -42,85 +43,142 @@ public static class Db
     /// <summary>Access TEXT columns stop at 255 characters; longer values are MEMO.</summary>
     private const int TextColumnLimit = 255;
 
+    /// <summary>
+    /// Builds the parameters for a command.
+    ///
+    /// Every parameter gets an explicit OleDbType rather than letting
+    /// AddWithValue infer one. Inference is the source of two Access errors
+    /// that say nothing about their cause: a DateTime is inferred as
+    /// DBTimeStamp, which Jet and ACE reject against a DATETIME column with
+    /// "Data type mismatch in criteria expression", and a long string is
+    /// inferred as a sized VarWChar, which a MEMO column answers with "the
+    /// field is too small to accept the amount of data".
+    ///
+    /// OleDb parameters are positional, so the order here has to match the
+    /// order the "?" placeholders appear in the SQL.
+    /// </summary>
     private static void Bind(OleDbCommand cmd, object[] args)
     {
         if (args == null) return;
 
         for (int i = 0; i < args.Length; i++)
-        {
-            object v = args[i];
-            string name = "p" + i;
+            cmd.Parameters.Add(MakeParameter("p" + i, args[i]));
+    }
 
-            if (v == null) v = DBNull.Value;
-            else if (v is bool) v = ((bool)v) ? -1 : 0;   // Jet stores YESNO as -1/0
+    public static OleDbParameter MakeParameter(string name, object value)
+    {
+        OleDbParameter parameter = new OleDbParameter(name, TypeFor(value));
+        parameter.Value = (value == null) ? DBNull.Value : value;
+        return parameter;
+    }
 
-            string text = v as string;
-            if (text != null && text.Length > TextColumnLimit)
-            {
-                // Left to infer the type, OleDb sends a long string as a sized
-                // VarWChar and Jet answers "the field is too small to accept the
-                // amount of data". Saying LongVarWChar up front is the fix.
-                OleDbParameter parameter = new OleDbParameter(name, OleDbType.LongVarWChar);
-                parameter.Value = text;
-                cmd.Parameters.Add(parameter);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue(name, v);
-            }
-        }
+    /// <summary>
+    /// The Access column type a .NET value belongs in. Kept separate from
+    /// building the parameter so the mapping can be tested on its own.
+    /// </summary>
+    public static OleDbType TypeFor(object value)
+    {
+        // An untyped NULL: Access takes it in any column.
+        if (value == null || value == DBNull.Value) return OleDbType.Variant;
+
+        if (value is bool) return OleDbType.Boolean;            // YESNO
+        if (value is DateTime) return OleDbType.Date;           // DATETIME
+
+        if (value is int || value is short || value is long || value is byte)
+            return OleDbType.Integer;                           // LONG / AUTOINCREMENT
+
+        if (value is double || value is float || value is decimal)
+            return OleDbType.Double;
+
+        string text = value as string;
+        if (text != null)
+            return text.Length > TextColumnLimit
+                       ? OleDbType.LongVarWChar                 // MEMO
+                       : OleDbType.VarWChar;                    // TEXT(n)
+
+        return OleDbType.Variant;
+    }
+
+    /// <summary>
+    /// Access error messages never mention the statement that produced them,
+    /// which is not much help on a host with no logs to read. This puts it
+    /// back so the page showing the error also shows the cause.
+    /// </summary>
+    private static Exception Explain(Exception ex, string sql)
+    {
+        string statement = Regex.Replace(sql ?? "", @"\s+", " ").Trim();
+        if (statement.Length > 120) statement = statement.Substring(0, 120) + "...";
+
+        return new InvalidOperationException(
+            ex.Message + "  [while running: " + statement + "]", ex);
     }
 
     public static int Execute(string sql, params object[] args)
     {
-        using (OleDbConnection cn = Open())
-        using (OleDbCommand cmd = new OleDbCommand(sql, cn))
+        try
         {
-            Bind(cmd, args);
-            return cmd.ExecuteNonQuery();
+            using (OleDbConnection cn = Open())
+            using (OleDbCommand cmd = new OleDbCommand(sql, cn))
+            {
+                Bind(cmd, args);
+                return cmd.ExecuteNonQuery();
+            }
         }
+        catch (OleDbException ex) { throw Explain(ex, sql); }
     }
 
     public static object Scalar(string sql, params object[] args)
     {
-        using (OleDbConnection cn = Open())
-        using (OleDbCommand cmd = new OleDbCommand(sql, cn))
+        try
         {
-            Bind(cmd, args);
-            object o = cmd.ExecuteScalar();
-            return (o == DBNull.Value) ? null : o;
+            using (OleDbConnection cn = Open())
+            using (OleDbCommand cmd = new OleDbCommand(sql, cn))
+            {
+                Bind(cmd, args);
+                object o = cmd.ExecuteScalar();
+                return (o == DBNull.Value) ? null : o;
+            }
         }
+        catch (OleDbException ex) { throw Explain(ex, sql); }
     }
 
     /// <summary>Runs an INSERT and returns the new AutoNumber key.</summary>
     public static int Insert(string sql, params object[] args)
     {
-        using (OleDbConnection cn = Open())
+        try
         {
-            using (OleDbCommand cmd = new OleDbCommand(sql, cn))
+            using (OleDbConnection cn = Open())
             {
-                Bind(cmd, args);
-                cmd.ExecuteNonQuery();
-            }
-            // @@IDENTITY must be read on the same open connection.
-            using (OleDbCommand id = new OleDbCommand("SELECT @@IDENTITY", cn))
-            {
-                return Convert.ToInt32(id.ExecuteScalar());
+                using (OleDbCommand cmd = new OleDbCommand(sql, cn))
+                {
+                    Bind(cmd, args);
+                    cmd.ExecuteNonQuery();
+                }
+                // @@IDENTITY must be read on the same open connection.
+                using (OleDbCommand id = new OleDbCommand("SELECT @@IDENTITY", cn))
+                {
+                    return Convert.ToInt32(id.ExecuteScalar());
+                }
             }
         }
+        catch (OleDbException ex) { throw Explain(ex, sql); }
     }
 
     public static DataTable Query(string sql, params object[] args)
     {
-        using (OleDbConnection cn = Open())
-        using (OleDbCommand cmd = new OleDbCommand(sql, cn))
+        try
         {
-            Bind(cmd, args);
-            DataTable table = new DataTable();
-            using (OleDbDataAdapter da = new OleDbDataAdapter(cmd))
-                da.Fill(table);
-            return table;
+            using (OleDbConnection cn = Open())
+            using (OleDbCommand cmd = new OleDbCommand(sql, cn))
+            {
+                Bind(cmd, args);
+                DataTable table = new DataTable();
+                using (OleDbDataAdapter da = new OleDbDataAdapter(cmd))
+                    da.Fill(table);
+                return table;
+            }
         }
+        catch (OleDbException ex) { throw Explain(ex, sql); }
     }
 
     /// <summary>
@@ -162,6 +220,48 @@ public static class Db
     }
 
     private static volatile bool _installed;
+
+    /// <summary>
+    /// The columns a table actually ended up with, as "Name  Type(size)".
+    ///
+    /// Worth being able to see: the DDL asks for TEXT(150) and YESNO, but what
+    /// Jet and ACE make of that differs, and a column that came out as the
+    /// wrong type shows up later as a type-mismatch error a long way from here.
+    /// </summary>
+    public static List<string> DescribeColumns(string tableName)
+    {
+        List<string> columns = new List<string>();
+        try
+        {
+            using (OleDbConnection cn = Open())
+            {
+                DataTable schema = cn.GetSchema("Columns",
+                    new string[] { null, null, tableName, null });
+
+                List<DataRow> rows = new List<DataRow>();
+                foreach (DataRow row in schema.Rows) rows.Add(row);
+                rows.Sort(delegate(DataRow a, DataRow b)
+                {
+                    return Int(a, "ORDINAL_POSITION").CompareTo(Int(b, "ORDINAL_POSITION"));
+                });
+
+                foreach (DataRow row in rows)
+                {
+                    string type = Enum.GetName(typeof(OleDbType), Int(row, "DATA_TYPE"))
+                                  ?? ("type " + Int(row, "DATA_TYPE"));
+                    int size = Int(row, "CHARACTER_MAXIMUM_LENGTH");
+
+                    columns.Add(Str(row, "COLUMN_NAME") + "  -  " + type +
+                                (size > 0 ? " (" + size + ")" : ""));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            columns.Add("(could not be read: " + ex.Message + ")");
+        }
+        return columns;
+    }
 
     // ----- DataRow readers, tolerant of NULLs -------------------------------
 

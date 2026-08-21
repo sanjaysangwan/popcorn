@@ -64,6 +64,25 @@ public static class Smoke
         Check(Ui.Shorten(longText, 50).EndsWith("..."), "long text is cut with an ellipsis");
         Check(Ui.Shorten(longText, 50).Length <= 54, "cut respects the limit");
 
+        // --- Access parameter types -------------------------------------------
+        // Inferred types are what produced "Data type mismatch in criteria
+        // expression" against YESNO and DATETIME columns, so pin them down.
+        Check(Type("b", true) == System.Data.OleDb.OleDbType.Boolean, "bool binds as Boolean, for YESNO");
+        Check(Type("b", false) == System.Data.OleDb.OleDbType.Boolean, "false binds as Boolean too");
+        Check(Type("d", DateTime.UtcNow) == System.Data.OleDb.OleDbType.Date, "DateTime binds as Date, not DBTimeStamp");
+        Check(Type("i", 42) == System.Data.OleDb.OleDbType.Integer, "int binds as Integer, for LONG");
+        Check(Type("s", "hello") == System.Data.OleDb.OleDbType.VarWChar, "short string binds as VarWChar, for TEXT");
+        Check(Type("s", new String('x', 300)) == System.Data.OleDb.OleDbType.LongVarWChar, "long string binds as LongVarWChar, for MEMO");
+        Check(Type("n", null) == System.Data.OleDb.OleDbType.Variant, "null binds untyped");
+        Check(Type("v", DBNull.Value) == System.Data.OleDb.OleDbType.Variant, "DBNull binds untyped");
+        Check(Type("f", 7.5) == System.Data.OleDb.OleDbType.Double, "double binds as Double");
+
+        // --- optional text becomes NULL, never "" -----------------------------
+        Check(Db.Text("", 50) == DBNull.Value, "empty optional text is NULL");
+        Check(Db.Text("   ", 50) == DBNull.Value, "whitespace-only optional text is NULL");
+        Check(Db.Text(null, 50) == DBNull.Value, "missing optional text is NULL");
+        Check(Convert.ToString(Db.Text(" Casablanca ", 50)) == "Casablanca", "optional text is trimmed");
+
         // --- escaping ---------------------------------------------------------
         Movie evil = new Movie();
         evil.MovieId = 1;
@@ -75,6 +94,14 @@ public static class Smoke
 
         Console.WriteLine(failures == 0 ? "\nAll checks passed." : "\n" + failures + " FAILED");
         return failures == 0 ? 0 : 1;
+    }
+
+    // Db.TypeFor rather than Db.MakeParameter: mono has no real OleDb, so an
+    // OleDbParameter cannot be constructed here. The mapping is the part worth
+    // testing anyway.
+    static System.Data.OleDb.OleDbType Type(string name, object value)
+    {
+        return Db.TypeFor(value);
     }
 
     static int CountOccurrences(string haystack, string needle)

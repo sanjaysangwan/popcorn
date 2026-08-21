@@ -34,7 +34,7 @@ public static class UserRepository
     public static int PendingCount()
     {
         return Convert.ToInt32(
-            Db.Scalar("SELECT COUNT(*) FROM Users WHERE IsApproved = 0 AND IsDisabled = 0") ?? 0);
+            Db.Scalar("SELECT COUNT(*) FROM Users WHERE IsApproved = False AND IsDisabled = False") ?? 0);
     }
 
     /// <summary>
@@ -121,7 +121,7 @@ public static class UserRepository
     public static int AdminCount()
     {
         return Convert.ToInt32(
-            Db.Scalar("SELECT COUNT(*) FROM Users WHERE IsAdmin = -1 AND IsDisabled = 0") ?? 0);
+            Db.Scalar("SELECT COUNT(*) FROM Users WHERE IsAdmin = True AND IsDisabled = False") ?? 0);
     }
 
     public static List<FamilyUser> All()
@@ -136,7 +136,7 @@ public static class UserRepository
     public static List<FamilyUser> ActiveMembers()
     {
         DataTable t = Db.Query(SelectList +
-            "WHERE IsApproved = -1 AND IsDisabled = 0 ORDER BY DisplayName");
+            "WHERE IsApproved = True AND IsDisabled = False ORDER BY DisplayName");
         List<FamilyUser> list = new List<FamilyUser>();
         foreach (DataRow row in t.Rows) list.Add(FamilyUser.FromRow(row));
         return list;
