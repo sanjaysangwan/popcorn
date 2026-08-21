@@ -20,7 +20,8 @@ public static class MovieRepository
 {
     private const string SelectMovies =
         "SELECT MovieId, Title, ReleaseYear, ImdbId, PosterUrl, Plot, Actors, Director, " +
-        "Genre, Runtime, MpaaRating, ImdbScore, AddedByUserId, AddedUtc FROM Movies";
+        "Genre, Runtime, MpaaRating, ImdbScore, AddedByUserId, AddedUtc, IsWatched, WatchedUtc " +
+        "FROM Movies";
 
     // ----- loading ---------------------------------------------------------
 
@@ -131,7 +132,17 @@ public static class MovieRepository
     /// </summary>
     public static List<Movie> Search(int viewerUserId, string term, string sort)
     {
-        return SortBy(Match(LoadAll(viewerUserId), term), sort);
+        return Search(viewerUserId, term, sort, ShowToWatch);
+    }
+
+    /// <summary>
+    /// The library, filtered by search term and by whether the family has
+    /// watched the film yet. <paramref name="show"/> is one of
+    /// <see cref="ShowToWatch"/>, <see cref="ShowWatched"/> or <see cref="ShowAll"/>.
+    /// </summary>
+    public static List<Movie> Search(int viewerUserId, string term, string sort, string show)
+    {
+        return SortBy(Match(OnlyWatched(LoadAll(viewerUserId), show), term), sort);
     }
 
     /// <summary>Everything the viewer has rated, their own favourites first.</summary>
@@ -155,6 +166,32 @@ public static class MovieRepository
     }
 
     // ----- filtering and ordering ------------------------------------------
+
+    public const string ShowToWatch = "towatch";
+    public const string ShowWatched = "watched";
+    public const string ShowAll = "all";
+
+    /// <summary>Normalises the value that arrives on the query string.</summary>
+    public static string CleanShow(string show)
+    {
+        show = (show ?? "").Trim().ToLowerInvariant();
+        return (show == ShowWatched || show == ShowAll) ? show : ShowToWatch;
+    }
+
+    /// <summary>Keeps the films matching the watched filter.</summary>
+    public static List<Movie> OnlyWatched(List<Movie> movies, string show)
+    {
+        show = CleanShow(show);
+        if (show == ShowAll) return movies;
+
+        bool wantWatched = (show == ShowWatched);
+
+        List<Movie> kept = new List<Movie>();
+        foreach (Movie movie in movies)
+            if (movie.IsWatched == wantWatched) kept.Add(movie);
+
+        return kept;
+    }
 
     /// <summary>Free-text match over title, cast, director and genre.</summary>
     public static List<Movie> Match(List<Movie> movies, string term)
@@ -300,6 +337,20 @@ public static class MovieRepository
             Db.Text(movie.MpaaRating, 20),
             Db.Text(movie.ImdbScore, 10),
             movie.MovieId);
+    }
+
+    /// <summary>
+    /// Moves a film into or out of the watched category. Ratings are left
+    /// alone - this only decides whether it shows up in the default library
+    /// view.
+    /// </summary>
+    public static void SetWatched(int movieId, bool watched)
+    {
+        if (watched)
+            Db.Execute("UPDATE Movies SET IsWatched = ?, WatchedUtc = ? WHERE MovieId = ?",
+                       true, DateTime.UtcNow, movieId);
+        else
+            Db.Execute("UPDATE Movies SET IsWatched = ? WHERE MovieId = ?", false, movieId);
     }
 
     /// <summary>Removes a film and every rating attached to it.</summary>

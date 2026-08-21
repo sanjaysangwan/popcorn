@@ -22,7 +22,8 @@
 
     <div class="detail-main">
         <div class="page-head">
-            <h1><%= H(Film.Title) %> <span class="movie-year"><%= H(Film.YearText) %></span></h1>
+            <h1><%= H(Film.Title) %> <span class="movie-year"><%= H(Film.YearText) %></span>
+                <%= Film.IsWatched ? "<span class=\"pill pill-watched\">watched</span>" : "" %></h1>
             <p>Added by <strong><%= H(Film.AddedByName) %></strong> <%= H(Ui.When(Film.AddedUtc)) %>.</p>
         </div>
 
@@ -109,6 +110,10 @@
         <input type="hidden" name="movieId" value="<%= Film.MovieId %>" />
         <button type="submit" class="btn btn-small">Refresh details from OMDb</button>
     </form>
+
+    <asp:PlaceHolder ID="phWatched" runat="server" Visible="false">
+        <%= Ui.WatchedForm(Film, null, false) %>
+    </asp:PlaceHolder>
 
     <asp:PlaceHolder ID="phDelete" runat="server" Visible="false">
         <form method="post" action="" style="display:inline;"

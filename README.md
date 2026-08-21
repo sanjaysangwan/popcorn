@@ -31,7 +31,7 @@ film details pulled from the free **OMDb** API.
 | `Login.aspx` | anyone | Sign in |
 | `Default.aspx` | members | What's new from the family, waiting for your stars |
 | `AddMovie.aspx` | members | OMDb search, or add by hand |
-| `Movies.aspx` | members | The whole library, searchable and sortable |
+| `Movies.aspx` | members | The library, searchable and sortable, split into still-to-watch and watched |
 | `MovieDetails.aspx` | members | Poster, synopsis, cast, every member's rating, yours |
 | `MyRatings.aspx` | members | Everything you have scored |
 | `Family.aspx` | members | Who is on the list and how active they are |
@@ -47,6 +47,10 @@ Users ──< Ratings >── Movies
 * `Ratings` has a unique index on `(MovieId, UserId)`, so a member has exactly
   one score per film and rating again updates it rather than stacking up.
 * A film's headline number is `AVG(Stars)` across that film's rows.
+* Marking a film **watched** retires it from the default library view without
+  touching its ratings — it stays under the "Already watched" filter and can
+  still be rated. Whoever added a film, and any administrator, can move it
+  either way, the same rule as deleting one.
 * Deleting a member or a film clears their ratings too — Access has no
   cascading deletes to lean on, so the repositories do it explicitly.
 * Every query is a plain `SELECT` over one table. Access accepts or rejects

@@ -80,10 +80,20 @@ public static class Ui
     /// </summary>
     public static string MovieCard(Movie movie, bool showRatingForm, string returnUrl)
     {
+        return MovieCard(movie, showRatingForm, returnUrl, false);
+    }
+
+    /// <summary>
+    /// As above, but <paramref name="canManage"/> adds the control that moves
+    /// the film into or out of the watched category.
+    /// </summary>
+    public static string MovieCard(Movie movie, bool showRatingForm, string returnUrl,
+                                   bool canManage)
+    {
         StringBuilder sb = new StringBuilder();
         string detailsUrl = "MovieDetails.aspx?id=" + movie.MovieId;
 
-        sb.Append("<article class=\"movie-card\">");
+        sb.Append("<article class=\"movie-card").Append(movie.IsWatched ? " is-watched" : "").Append("\">");
 
         sb.Append("<a class=\"movie-poster\" href=\"").Append(A(detailsUrl)).Append("\">");
         sb.Append(PosterTag(movie, "poster"));
@@ -93,7 +103,10 @@ public static class Ui
 
         sb.Append("<h3 class=\"movie-title\"><a href=\"").Append(A(detailsUrl)).Append("\">")
           .Append(E(movie.Title)).Append("</a> <span class=\"movie-year\">")
-          .Append(E(movie.YearText)).Append("</span></h3>");
+          .Append(E(movie.YearText)).Append("</span>");
+        if (movie.IsWatched)
+            sb.Append(" <span class=\"pill pill-watched\">watched</span>");
+        sb.Append("</h3>");
 
         sb.Append("<p class=\"movie-meta\">");
         if (!String.IsNullOrEmpty(movie.Genre)) sb.Append(E(movie.Genre));
@@ -150,7 +163,34 @@ public static class Ui
               .Append(movie.MyStars).Append("/10</strong></p>");
         }
 
+        if (canManage)
+            sb.Append(WatchedForm(movie, returnUrl, true));
+
         sb.Append("</div></article>");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// The button that moves a film into or out of the watched category.
+    /// Its own little form, so it works without JavaScript like everything else.
+    /// </summary>
+    public static string WatchedForm(Movie movie, string returnUrl, bool small)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        sb.Append("<form class=\"watched-form\" method=\"post\" action=\"\">");
+        sb.Append(Csrf.Field);
+        sb.Append("<input type=\"hidden\" name=\"action\" value=\"")
+          .Append(movie.IsWatched ? "unwatched" : "watched").Append("\" />");
+        sb.Append("<input type=\"hidden\" name=\"movieId\" value=\"").Append(movie.MovieId).Append("\" />");
+        if (!String.IsNullOrEmpty(returnUrl))
+            sb.Append("<input type=\"hidden\" name=\"return\" value=\"").Append(A(returnUrl)).Append("\" />");
+
+        sb.Append("<button type=\"submit\" class=\"btn").Append(small ? " btn-small" : "").Append("\">")
+          .Append(movie.IsWatched ? "Move back to the list" : "Mark as watched")
+          .Append("</button>");
+        sb.Append("</form>");
+
         return sb.ToString();
     }
 

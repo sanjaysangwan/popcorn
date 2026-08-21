@@ -371,3 +371,13 @@ table.grid th { color: var(--text-dim); font-size: .78rem; text-transform: upper
     padding: .8rem; overflow-x: auto; font-size: .8rem; line-height: 1.45;
     white-space: pre-wrap; word-break: break-word; color: #d7dced; margin: 0;
 }
+
+/* ----- watched category -------------------------------------------------- */
+
+.pill-watched {
+    color: var(--good); border-color: var(--good);
+    vertical-align: middle; font-weight: 600;
+}
+.watched-form { margin-top: .6rem; }
+.movie-card.is-watched { opacity: .72; }
+.movie-card.is-watched:hover { opacity: 1; }

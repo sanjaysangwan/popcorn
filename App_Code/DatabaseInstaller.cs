@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.OleDb;
 using System.IO;
 using System.Reflection;
@@ -49,7 +50,9 @@ public static class DatabaseInstaller
             MpaaRating      TEXT(20),
             ImdbScore       TEXT(10),
             AddedByUserId   LONG      NOT NULL,
-            AddedUtc        DATETIME  NOT NULL
+            AddedUtc        DATETIME  NOT NULL,
+            IsWatched       YESNO     NOT NULL,
+            WatchedUtc      DATETIME
           )",
 
         @"CREATE INDEX IX_Movies_Added ON Movies (AddedUtc)",
@@ -67,6 +70,52 @@ public static class DatabaseInstaller
         // One rating per family member per movie.
         @"CREATE UNIQUE INDEX IX_Ratings_MovieUser ON Ratings (MovieId, UserId)"
     };
+
+    /// <summary>
+    /// Columns added to Movies after the first release. A database created
+    /// before they existed picks them up automatically the first time it runs
+    /// the newer code, so nobody has to remember to re-run Setup.
+    /// </summary>
+    private static readonly string[][] MovieColumnsAddedLater = new string[][]
+    {
+        new string[] { "IsWatched",  "ALTER TABLE Movies ADD COLUMN IsWatched YESNO" },
+        new string[] { "WatchedUtc", "ALTER TABLE Movies ADD COLUMN WatchedUtc DATETIME" }
+    };
+
+    /// <summary>
+    /// Brings an existing database up to the current schema. Safe to call
+    /// repeatedly - it only adds what is missing. Returns what it did.
+    /// </summary>
+    public static List<string> ApplyMigrations()
+    {
+        List<string> log = new List<string>();
+
+        using (OleDbConnection cn = Db.Open())
+        {
+            List<string> existing = new List<string>();
+            DataTable schema = cn.GetSchema("Columns", new string[] { null, null, "Movies", null });
+            foreach (DataRow row in schema.Rows)
+                existing.Add(Convert.ToString(row["COLUMN_NAME"]).ToLowerInvariant());
+
+            foreach (string[] column in MovieColumnsAddedLater)
+            {
+                if (existing.Contains(column[0].ToLowerInvariant())) continue;
+
+                try
+                {
+                    using (OleDbCommand cmd = new OleDbCommand(column[1], cn))
+                        cmd.ExecuteNonQuery();
+                    log.Add("Added the " + column[0] + " column to Movies.");
+                }
+                catch (OleDbException ex)
+                {
+                    log.Add("Could not add " + column[0] + " to Movies: " + ex.Message);
+                }
+            }
+        }
+
+        return log;
+    }
 
     /// <summary>Full path of the .mdb/.accdb named by the connection string.</summary>
     public static string DatabaseFilePath()

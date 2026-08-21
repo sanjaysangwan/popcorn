@@ -95,6 +95,16 @@ public partial class MovieDetailsPage : PageBase
         // both in the same field, so take whichever one is not "rate".
         string action = PickAction();
 
+        if (action == "watched" || action == "unwatched")
+        {
+            string watchedMessage;
+            bool watchedOk;
+            MovieActions.TryHandleWatched(Request, CurrentUser, out watchedMessage, out watchedOk);
+            SetFlash(watchedMessage, watchedOk ? "success" : "error");
+            Go("~/MovieDetails.aspx?id=" + movieId);
+            return true;
+        }
+
         switch (action)
         {
             case "rate":
@@ -204,6 +214,7 @@ public partial class MovieDetailsPage : PageBase
 
         phUnrate.Visible = Film.RatedByMe;
         phDelete.Visible = CanDelete;
+        phWatched.Visible = MovieActions.CanManage(Film, CurrentUser);
     }
 
     protected string ReviewMarkup(MovieRating rating)

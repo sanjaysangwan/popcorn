@@ -48,9 +48,27 @@ public static class OmdbClient
             return results;
         }
 
-        Dictionary<string, object> json = Get("s=" + HttpUtility.UrlEncode(term.Trim()) + "&type=movie",
-                                              out error);
+        object json = Get("s=" + HttpUtility.UrlEncode(term.Trim()) + "&type=movie", out error);
         if (json == null) return results;
+
+        return ReadSearchResults(json, out error);
+    }
+
+    /// <summary>
+    /// Turns a decoded OMDb search response into results. Separated from the
+    /// HTTP call so the parsing is covered by tests - this is where a silent
+    /// "no results" came from once already.
+    /// </summary>
+    public static List<MovieSearchResult> ReadSearchResults(object json, out string error)
+    {
+        List<MovieSearchResult> results = new List<MovieSearchResult>();
+        error = null;
+
+        if (json == null)
+        {
+            error = "The movie service returned nothing.";
+            return results;
+        }
 
         if (!IsSuccess(json))
         {
@@ -59,26 +77,30 @@ public static class OmdbClient
             return results;
         }
 
-        object searchNode;
-        if (!json.TryGetValue("Search", out searchNode)) return results;
+        System.Collections.IDictionary map = json as System.Collections.IDictionary;
+        object searchNode = (map != null && map.Contains("Search")) ? map["Search"] : null;
 
-        object[] items = searchNode as object[];
-        if (items == null) return results;
-
-        foreach (object item in items)
+        foreach (object item in Items(searchNode))
         {
-            Dictionary<string, object> row = item as Dictionary<string, object>;
-            if (row == null) continue;
+            string imdbId = Text(item, "imdbID");
+            string title = Text(item, "Title");
+            if (title.Length == 0) continue;
 
             results.Add(new MovieSearchResult
             {
-                ImdbId = Text(row, "imdbID"),
-                Title = Text(row, "Title"),
-                Year = Text(row, "Year"),
-                PosterUrl = Clean(Text(row, "Poster")),
-                Type = Text(row, "Type")
+                ImdbId = imdbId,
+                Title = title,
+                Year = Text(item, "Year"),
+                PosterUrl = Clean(Text(item, "Poster")),
+                Type = Text(item, "Type")
             });
         }
+
+        // OMDb said it succeeded but nothing could be read out of it. Say so
+        // rather than showing an empty page as though there were no matches.
+        if (results.Count == 0)
+            error = "The movie service replied, but its list of matches could not be read.";
+
         return results;
     }
 
@@ -89,8 +111,7 @@ public static class OmdbClient
         if (!IsConfigured) { error = "No OMDb API key is configured."; return null; }
         if (String.IsNullOrEmpty(imdbId)) { error = "No movie id supplied."; return null; }
 
-        Dictionary<string, object> json =
-            Get("i=" + HttpUtility.UrlEncode(imdbId) + "&plot=full", out error);
+        object json = Get("i=" + HttpUtility.UrlEncode(imdbId) + "&plot=full", out error);
         return ToMovie(json, ref error);
     }
 
@@ -105,11 +126,11 @@ public static class OmdbClient
         if (!String.IsNullOrEmpty(year))
             query += "&y=" + HttpUtility.UrlEncode(year.Trim());
 
-        Dictionary<string, object> json = Get(query, out error);
+        object json = Get(query, out error);
         return ToMovie(json, ref error);
     }
 
-    private static Movie ToMovie(Dictionary<string, object> json, ref string error)
+    public static Movie ToMovie(object json, ref string error)
     {
         if (json == null) return null;
         if (!IsSuccess(json))
@@ -137,7 +158,7 @@ public static class OmdbClient
 
     // ----- plumbing --------------------------------------------------------
 
-    private static Dictionary<string, object> Get(string query, out string error)
+    private static object Get(string query, out string error)
     {
         error = null;
         string body = Download("https://" + Host + "/?apikey=" + HttpUtility.UrlEncode(ApiKey) +
@@ -157,7 +178,7 @@ public static class OmdbClient
         {
             JavaScriptSerializer serializer = new JavaScriptSerializer();
             serializer.MaxJsonLength = 4 * 1024 * 1024;
-            return serializer.Deserialize<Dictionary<string, object>>(body);
+            return serializer.DeserializeObject(body);
         }
         catch (Exception ex)
         {
@@ -198,16 +219,39 @@ public static class OmdbClient
         }
     }
 
-    private static bool IsSuccess(Dictionary<string, object> json)
+    private static bool IsSuccess(object json)
     {
         return String.Equals(Text(json, "Response"), "True", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string Text(Dictionary<string, object> json, string key)
+    /// <summary>
+    /// Reads one field out of a decoded JSON object.
+    ///
+    /// Takes "object" rather than a dictionary type on purpose:
+    /// JavaScriptSerializer decodes a nested JSON object as
+    /// Dictionary&lt;string, object&gt; but a nested JSON array as ArrayList,
+    /// and being strict about either of those is how the search silently
+    /// returned nothing at all.
+    /// </summary>
+    private static string Text(object node, string key)
     {
-        object value;
-        if (json == null || !json.TryGetValue(key, out value) || value == null) return "";
-        return Convert.ToString(value);
+        System.Collections.IDictionary map = node as System.Collections.IDictionary;
+        if (map == null || !map.Contains(key)) return "";
+
+        object value = map[key];
+        return value == null ? "" : Convert.ToString(value);
+    }
+
+    /// <summary>Every element of a decoded JSON array, whatever list type it arrived as.</summary>
+    private static List<object> Items(object node)
+    {
+        List<object> items = new List<object>();
+
+        System.Collections.IEnumerable list = node as System.Collections.IEnumerable;
+        if (list == null || node is string) return items;
+
+        foreach (object item in list) items.Add(item);
+        return items;
     }
 
     /// <summary>OMDb writes "N/A" where it has no data; treat that as empty.</summary>

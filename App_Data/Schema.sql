@@ -41,7 +41,9 @@ CREATE TABLE Movies (
     MpaaRating      TEXT(20),
     ImdbScore       TEXT(10),
     AddedByUserId   LONG      NOT NULL,
-    AddedUtc        DATETIME  NOT NULL
+    AddedUtc        DATETIME  NOT NULL,
+    IsWatched       YESNO     NOT NULL,
+    WatchedUtc      DATETIME
 );
 
 CREATE INDEX IX_Movies_Added ON Movies (AddedUtc);

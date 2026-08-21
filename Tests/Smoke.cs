@@ -156,6 +156,103 @@ public static class Smoke
         Check(nothing.Count == 0, "an empty database assembles to an empty list, not a crash");
         Check(MovieRepository.SortBy(nothing, "rating").Count == 0, "sorting nothing is fine");
 
+        // --- the watched category ---------------------------------------------
+        // Marking a film watched retires it from the default library view but
+        // keeps it, and its ratings, entirely intact.
+        MarkWatched(movies, 1);
+        List<Movie> withWatched = MovieRepository.Assemble(movies, ratings, users, 3);
+
+        Check(Find(withWatched, 1).IsWatched, "the watched flag is read back");
+        Check(!Find(withWatched, 2).IsWatched, "other films are untouched");
+        Check(Find(withWatched, 1).FamilyAverageText == "7.0", "a watched film keeps its family rating");
+        Check(Find(withWatched, 1).MyStars == 4, "and keeps the viewer's own score");
+
+        List<Movie> toWatch = MovieRepository.OnlyWatched(
+            MovieRepository.Assemble(movies, ratings, users, 3), MovieRepository.ShowToWatch);
+        Check(toWatch.Count == 2, "the default view drops watched films");
+        foreach (Movie unwatched in toWatch) Check(!unwatched.IsWatched, "and shows only unwatched ones");
+
+        List<Movie> watchedOnly = MovieRepository.OnlyWatched(
+            MovieRepository.Assemble(movies, ratings, users, 3), MovieRepository.ShowWatched);
+        Check(watchedOnly.Count == 1 && watchedOnly[0].MovieId == 1, "the watched view shows just those");
+
+        Check(MovieRepository.OnlyWatched(
+                  MovieRepository.Assemble(movies, ratings, users, 3),
+                  MovieRepository.ShowAll).Count == 3, "the everything view shows both");
+
+        Check(MovieRepository.CleanShow(null) == MovieRepository.ShowToWatch, "no filter means still-to-watch");
+        Check(MovieRepository.CleanShow("nonsense") == MovieRepository.ShowToWatch, "a bad filter falls back safely");
+        Check(MovieRepository.CleanShow("WATCHED") == MovieRepository.ShowWatched, "the filter ignores case");
+
+        // Who may retire a film: an administrator, or whoever added it.
+        Movie someonesFilm = Find(withWatched, 1);          // added by user 2
+        Check(MovieActions.CanManage(someonesFilm, Member(2)), "the member who added it may");
+        Check(!MovieActions.CanManage(someonesFilm, Member(3)), "another member may not");
+        Check(MovieActions.CanManage(someonesFilm, Admin(9)), "an administrator may");
+        Check(!MovieActions.CanManage(someonesFilm, null), "a signed-out visitor may not");
+
+        MarkWatched(movies, 1);   // leave the fixture as the later tests expect
+
+        // --- OMDb responses ---------------------------------------------------
+        // A real search payload. JavaScriptSerializer decodes the nested array
+        // as an ArrayList, not object[], and casting to object[] is what made
+        // the Add a Movie search silently show "no results".
+        string searchJson =
+            "{\"Search\":[" +
+            "{\"Title\":\"Casablanca\",\"Year\":\"1942\",\"imdbID\":\"tt0034583\",\"Type\":\"movie\"," +
+            "\"Poster\":\"https://m.media-amazon.com/images/x.jpg\"}," +
+            "{\"Title\":\"Casablanca Express\",\"Year\":\"1989\",\"imdbID\":\"tt0097129\"," +
+            "\"Type\":\"movie\",\"Poster\":\"N/A\"}" +
+            "],\"totalResults\":\"2\",\"Response\":\"True\"}";
+
+        string omdbError;
+        List<MovieSearchResult> hits = OmdbClient.ReadSearchResults(Decode(searchJson), out omdbError);
+
+        Check(hits.Count == 2, "both search results are read");
+        Check(omdbError == null, "a good search reports no error");
+        Check(hits[0].Title == "Casablanca", "result title");
+        Check(hits[0].Year == "1942", "result year");
+        Check(hits[0].ImdbId == "tt0034583", "result imdb id, which is what Add posts back");
+        Check(hits[0].HasPoster, "a real poster url is kept");
+        Check(!hits[1].HasPoster, "OMDb's \"N/A\" poster is not treated as one");
+
+        // OMDb's own "nothing found" shape.
+        List<MovieSearchResult> none = OmdbClient.ReadSearchResults(
+            Decode("{\"Response\":\"False\",\"Error\":\"Movie not found!\"}"), out omdbError);
+        Check(none.Count == 0, "a failed search returns nothing");
+        Check(omdbError == "Movie not found!", "and passes OMDb's own wording through");
+
+        // Success with an unreadable body must never look like "no matches".
+        OmdbClient.ReadSearchResults(Decode("{\"Response\":\"True\"}"), out omdbError);
+        Check(omdbError != null, "a success with no readable list reports a problem, not silence");
+
+        OmdbClient.ReadSearchResults(null, out omdbError);
+        Check(omdbError != null, "a missing response reports a problem");
+
+        // Full details, the shape the "add by hand" path already handled.
+        string detailJson =
+            "{\"Title\":\"The Princess Bride\",\"Year\":\"1987\",\"Rated\":\"PG\"," +
+            "\"Runtime\":\"98 min\",\"Genre\":\"Adventure, Family, Fantasy\"," +
+            "\"Director\":\"Rob Reiner\",\"Actors\":\"Cary Elwes, Mandy Patinkin\"," +
+            "\"Plot\":\"A bedridden boy's grandfather reads him a story.\"," +
+            "\"Poster\":\"https://m.media-amazon.com/images/y.jpg\",\"imdbRating\":\"8.0\"," +
+            "\"imdbID\":\"tt0093779\",\"Response\":\"True\"}";
+
+        string detailError = null;
+        Movie detail = OmdbClient.ToMovie(Decode(detailJson), ref detailError);
+        Check(detail != null, "details are read");
+        Check(detail.Title == "The Princess Bride", "detail title");
+        Check(detail.Director == "Rob Reiner", "detail director");
+        Check(detail.Actors == "Cary Elwes, Mandy Patinkin", "detail cast");
+        Check(detail.MpaaRating == "PG", "detail certificate");
+        Check(detail.ImdbScore == "8.0", "detail imdb score");
+        Check(detail.Plot.Length > 0 && detail.HasPoster, "detail plot and poster");
+
+        string missingError = null;
+        Check(OmdbClient.ToMovie(Decode("{\"Response\":\"False\",\"Error\":\"Incorrect IMDb ID.\"}"),
+                                 ref missingError) == null, "a failed lookup returns no movie");
+        Check(missingError == "Incorrect IMDb ID.", "and explains why");
+
         // --- escaping ---------------------------------------------------------
         Movie evil = new Movie();
         evil.MovieId = 1;
@@ -169,6 +266,27 @@ public static class Smoke
         return failures == 0 ? 0 : 1;
     }
 
+    static FamilyUser Member(int id)
+    {
+        FamilyUser u = new FamilyUser();
+        u.UserId = id;
+        return u;
+    }
+
+    static FamilyUser Admin(int id)
+    {
+        FamilyUser u = Member(id);
+        u.IsAdmin = true;
+        return u;
+    }
+
+    /// Decodes JSON exactly the way OmdbClient does, so the tests exercise the
+    /// real runtime types (ArrayList for arrays) rather than idealised ones.
+    static object Decode(string json)
+    {
+        return new System.Web.Script.Serialization.JavaScriptSerializer().DeserializeObject(json);
+    }
+
     // ----- building the flat result sets the repository assembles from -----
 
     static System.Data.DataTable MovieTable()
@@ -176,7 +294,7 @@ public static class Smoke
         System.Data.DataTable t = new System.Data.DataTable();
         string[] columns = { "MovieId", "Title", "ReleaseYear", "ImdbId", "PosterUrl", "Plot",
                              "Actors", "Director", "Genre", "Runtime", "MpaaRating", "ImdbScore",
-                             "AddedByUserId", "AddedUtc" };
+                             "AddedByUserId", "AddedUtc", "IsWatched", "WatchedUtc" };
         foreach (string c in columns) t.Columns.Add(c, typeof(object));
         return t;
     }
@@ -193,6 +311,7 @@ public static class Smoke
         row["Genre"] = genre;
         row["AddedByUserId"] = addedBy;
         row["AddedUtc"] = added;
+        row["IsWatched"] = false;
         t.Rows.Add(row);
     }
 
@@ -221,6 +340,16 @@ public static class Smoke
     static void AddUser(System.Data.DataTable t, int id, string name)
     {
         t.Rows.Add(new object[] { id, name });
+    }
+
+    static void MarkWatched(System.Data.DataTable t, int movieId)
+    {
+        foreach (System.Data.DataRow row in t.Rows)
+            if (Convert.ToInt32(row["MovieId"]) == movieId)
+            {
+                row["IsWatched"] = true;
+                row["WatchedUtc"] = DateTime.UtcNow;
+            }
     }
 
     static Movie Find(List<Movie> movies, int movieId)

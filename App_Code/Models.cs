@@ -51,6 +51,14 @@ public class Movie
     public string AddedByName = "";
     public DateTime AddedUtc;
 
+    /// <summary>
+    /// Marked as watched by the family. Watched films drop out of the default
+    /// library view so the list stays a list of things still to see, but they
+    /// keep every rating and stay reachable under the "Watched" filter.
+    /// </summary>
+    public bool IsWatched;
+    public DateTime? WatchedUtc;
+
     /// <summary>Average of every family member's stars. 0 when nobody has rated it.</summary>
     public double FamilyAverage;
     public int RatingCount;
@@ -98,6 +106,8 @@ public class Movie
             AddedByUserId = Db.Int(row, "AddedByUserId"),
             AddedByName = Db.Str(row, "AddedByName"),
             AddedUtc = Db.Date(row, "AddedUtc") ?? DateTime.UtcNow,
+            IsWatched = Db.Bool(row, "IsWatched"),
+            WatchedUtc = Db.Date(row, "WatchedUtc"),
             FamilyAverage = Db.Dbl(row, "AvgStars"),
             RatingCount = Db.Int(row, "RatingCount"),
             MyStars = Db.Int(row, "MyStars")

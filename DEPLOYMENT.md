@@ -199,6 +199,12 @@ problem happen again — the page then shows the real exception, the statement
 that produced it, and where it happened. There is no log file on shared
 hosting, so this is the log.
 
+**A column is missing after upgrading the site**
+New columns added after your database was created are applied automatically
+the first time the newer code runs, so there is nothing to do. If one fails,
+the **What the database actually contains** panel on `Setup.aspx` shows what
+is really there.
+
 **Movie search finds nothing / no posters appear**
 Run **Test the connection to OMDb** on `Setup.aspx`. It fetches one known film
 and tells you which of the three causes you have: no key configured, a key

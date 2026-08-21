@@ -209,6 +209,15 @@ public static class Db
             }
 
             _installed = users && movies && ratings;
+
+            // An existing database may predate a column the current code needs.
+            // Done once per application start, not once per request.
+            if (_installed && !_migrated)
+            {
+                _migrated = true;
+                try { DatabaseInstaller.ApplyMigrations(); }
+                catch { /* Setup reports schema problems properly */ }
+            }
         }
         catch
         {
@@ -220,6 +229,7 @@ public static class Db
     }
 
     private static volatile bool _installed;
+    private static volatile bool _migrated;
 
     /// <summary>
     /// The columns a table actually ended up with, as "Name  Type(size)".
