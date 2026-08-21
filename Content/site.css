@@ -363,3 +363,11 @@ table.grid th { color: var(--text-dim); font-size: .78rem; text-transform: upper
 .auth-wrap { max-width: 430px; margin: 2rem auto; }
 .auth-wrap .panel { padding: 1.5rem; }
 .auth-links { margin-top: 1rem; font-size: .88rem; color: var(--text-dim); }
+
+/* ----- error details (administrators only) ------------------------------ */
+
+.error-detail {
+    background: var(--bg-input); border: 1px solid var(--line); border-radius: 8px;
+    padding: .8rem; overflow-x: auto; font-size: .8rem; line-height: 1.45;
+    white-space: pre-wrap; word-break: break-word; color: #d7dced; margin: 0;
+}

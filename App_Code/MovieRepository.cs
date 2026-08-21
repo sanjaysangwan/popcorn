@@ -2,61 +2,127 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 
+/// <summary>
+/// Reading and writing the movie list.
+///
+/// Every query here is a plain SELECT over one table: no correlated
+/// sub-selects, no aggregates in the field list, no ordering by a computed
+/// alias. Access accepts some of those and rejects others depending on
+/// whether Jet or ACE is behind it, and a rejection surfaces as a generic
+/// error a long way from the cause. The family average, the vote count and
+/// the viewer's own score are assembled in memory instead, by
+/// <see cref="Assemble"/>, which is ordinary code that can be tested.
+///
+/// This is a family movie list - hundreds of rows, not millions - so reading
+/// the ratings table and joining it up here costs nothing worth measuring.
+/// </summary>
 public static class MovieRepository
 {
-    /// <summary>
-    /// Every movie query starts here. The correlated sub-selects give us the
-    /// family average, how many members have voted, and the viewer's own stars
-    /// in one round trip - Access cannot GROUP BY a MEMO column such as Plot,
-    /// so sub-selects are used instead of a join plus aggregate.
-    ///
-    /// The first "?" is always the id of the signed-in member.
-    /// </summary>
-    private const string BaseSelect =
-        "SELECT m.MovieId, m.Title, m.ReleaseYear, m.ImdbId, m.PosterUrl, m.Plot, m.Actors, " +
-        "       m.Director, m.Genre, m.Runtime, m.MpaaRating, m.ImdbScore, " +
-        "       m.AddedByUserId, m.AddedUtc, " +
-        "       (SELECT u.DisplayName FROM Users AS u WHERE u.UserId = m.AddedByUserId) AS AddedByName, " +
-        "       (SELECT AVG(ra.Stars) FROM Ratings AS ra WHERE ra.MovieId = m.MovieId) AS AvgStars, " +
-        "       (SELECT COUNT(*) FROM Ratings AS rc WHERE rc.MovieId = m.MovieId) AS RatingCount, " +
-        "       (SELECT MAX(rm.Stars) FROM Ratings AS rm WHERE rm.MovieId = m.MovieId " +
-        "               AND rm.UserId = ?) AS MyStars " +
-        "FROM Movies AS m ";
+    private const string SelectMovies =
+        "SELECT MovieId, Title, ReleaseYear, ImdbId, PosterUrl, Plot, Actors, Director, " +
+        "Genre, Runtime, MpaaRating, ImdbScore, AddedByUserId, AddedUtc FROM Movies";
 
-    private static List<Movie> Read(DataTable table)
+    // ----- loading ---------------------------------------------------------
+
+    /// <summary>Every movie, with the family verdict and the viewer's own score attached.</summary>
+    private static List<Movie> LoadAll(int viewerUserId)
     {
-        List<Movie> list = new List<Movie>();
-        foreach (DataRow row in table.Rows) list.Add(Movie.FromRow(row));
-        return list;
+        return Assemble(Db.Query(SelectMovies),
+                        Db.Query("SELECT MovieId, UserId, Stars FROM Ratings"),
+                        Db.Query("SELECT UserId, DisplayName FROM Users"),
+                        viewerUserId);
     }
+
+    /// <summary>
+    /// Turns three flat result sets into movies carrying their ratings.
+    /// Separated out from the database so it can be tested directly.
+    /// </summary>
+    public static List<Movie> Assemble(DataTable movieRows, DataTable ratingRows,
+                                       DataTable userRows, int viewerUserId)
+    {
+        Dictionary<int, string> names = new Dictionary<int, string>();
+        if (userRows != null)
+            foreach (DataRow row in userRows.Rows)
+                names[Db.Int(row, "UserId")] = Db.Str(row, "DisplayName");
+
+        // MovieId -> running total and count, plus this viewer's own score.
+        Dictionary<int, int> totals = new Dictionary<int, int>();
+        Dictionary<int, int> counts = new Dictionary<int, int>();
+        Dictionary<int, int> mine = new Dictionary<int, int>();
+
+        if (ratingRows != null)
+        {
+            foreach (DataRow row in ratingRows.Rows)
+            {
+                int movieId = Db.Int(row, "MovieId");
+                int stars = Db.Int(row, "Stars");
+
+                totals[movieId] = (totals.ContainsKey(movieId) ? totals[movieId] : 0) + stars;
+                counts[movieId] = (counts.ContainsKey(movieId) ? counts[movieId] : 0) + 1;
+
+                if (Db.Int(row, "UserId") == viewerUserId) mine[movieId] = stars;
+            }
+        }
+
+        List<Movie> movies = new List<Movie>();
+        if (movieRows == null) return movies;
+
+        foreach (DataRow row in movieRows.Rows)
+        {
+            Movie movie = Movie.FromRow(row);
+
+            if (names.ContainsKey(movie.AddedByUserId))
+                movie.AddedByName = names[movie.AddedByUserId];
+
+            if (counts.ContainsKey(movie.MovieId) && counts[movie.MovieId] > 0)
+            {
+                movie.RatingCount = counts[movie.MovieId];
+                // The film's headline score: the average of every family
+                // member's rating, never stored, always recomputed.
+                movie.FamilyAverage = (double)totals[movie.MovieId] / counts[movie.MovieId];
+            }
+
+            if (mine.ContainsKey(movie.MovieId)) movie.MyStars = mine[movie.MovieId];
+
+            movies.Add(movie);
+        }
+
+        return movies;
+    }
+
+    // ----- the views the pages ask for -------------------------------------
 
     public static Movie GetById(int movieId, int viewerUserId)
     {
-        DataTable t = Db.Query(BaseSelect + "WHERE m.MovieId = ?", viewerUserId, movieId);
-        return t.Rows.Count == 0 ? null : Movie.FromRow(t.Rows[0]);
+        if (movieId <= 0) return null;
+
+        List<Movie> found = Assemble(
+            Db.Query(SelectMovies + " WHERE MovieId = ?", movieId),
+            Db.Query("SELECT MovieId, UserId, Stars FROM Ratings WHERE MovieId = ?", movieId),
+            Db.Query("SELECT UserId, DisplayName FROM Users"),
+            viewerUserId);
+
+        return found.Count == 0 ? null : found[0];
     }
 
     /// <summary>
     /// The login landing list: films somebody else put up that the viewer has
-    /// not rated yet. Newest first.
+    /// not rated yet, newest first.
     /// </summary>
     public static List<Movie> AwaitingMyRating(int viewerUserId, int max)
     {
-        string top = max > 0 ? "TOP " + max + " " : "";
-        string sql = BaseSelect.Replace("SELECT m.MovieId", "SELECT " + top + "m.MovieId") +
-                     "WHERE m.AddedByUserId <> ? " +
-                     "  AND m.MovieId NOT IN (SELECT r.MovieId FROM Ratings AS r WHERE r.UserId = ?) " +
-                     "ORDER BY m.AddedUtc DESC";
-        return Read(Db.Query(sql, viewerUserId, viewerUserId, viewerUserId));
-    }
+        List<Movie> awaiting = new List<Movie>();
 
-    /// <summary>Newest additions from anyone, including the viewer.</summary>
-    public static List<Movie> RecentlyAdded(int viewerUserId, int max)
-    {
-        string top = max > 0 ? "TOP " + max + " " : "";
-        string sql = BaseSelect.Replace("SELECT m.MovieId", "SELECT " + top + "m.MovieId") +
-                     "ORDER BY m.AddedUtc DESC";
-        return Read(Db.Query(sql, viewerUserId));
+        foreach (Movie movie in SortByNewest(LoadAll(viewerUserId)))
+        {
+            if (movie.AddedByUserId == viewerUserId) continue;
+            if (movie.RatedByMe) continue;
+
+            awaiting.Add(movie);
+            if (max > 0 && awaiting.Count == max) break;
+        }
+
+        return awaiting;
     }
 
     /// <summary>
@@ -65,50 +131,108 @@ public static class MovieRepository
     /// </summary>
     public static List<Movie> Search(int viewerUserId, string term, string sort)
     {
-        List<object> args = new List<object>();
-        args.Add(viewerUserId);
-
-        string sql = BaseSelect;
-        if (!String.IsNullOrEmpty(term))
-        {
-            string like = "%" + term.Trim() + "%";
-            sql += "WHERE (m.Title LIKE ? OR m.Actors LIKE ? OR m.Director LIKE ? OR m.Genre LIKE ?) ";
-            args.Add(like); args.Add(like); args.Add(like); args.Add(like);
-        }
-
-        switch (sort)
-        {
-            case "rating":
-                // Unrated films fall to the bottom because Access sorts NULL last
-                // in a descending sort.
-                sql += "ORDER BY AvgStars DESC, m.Title";
-                break;
-            case "title":
-                sql += "ORDER BY m.Title";
-                break;
-            default:
-                sql += "ORDER BY m.AddedUtc DESC";
-                break;
-        }
-
-        return Read(Db.Query(sql, args.ToArray()));
+        return SortBy(Match(LoadAll(viewerUserId), term), sort);
     }
 
-    /// <summary>Everything the viewer has rated, best first.</summary>
+    /// <summary>Everything the viewer has rated, their own favourites first.</summary>
     public static List<Movie> RatedBy(int viewerUserId)
     {
-        string sql = BaseSelect +
-                     "WHERE m.MovieId IN (SELECT r.MovieId FROM Ratings AS r WHERE r.UserId = ?) " +
-                     "ORDER BY MyStars DESC, m.Title";
-        return Read(Db.Query(sql, viewerUserId, viewerUserId));
+        List<Movie> rated = new List<Movie>();
+        foreach (Movie movie in LoadAll(viewerUserId))
+            if (movie.RatedByMe) rated.Add(movie);
+
+        return SortBy(rated, "mine");
     }
 
     /// <summary>Films added by a particular member.</summary>
     public static List<Movie> AddedBy(int viewerUserId, int authorUserId)
     {
-        return Read(Db.Query(BaseSelect + "WHERE m.AddedByUserId = ? ORDER BY m.AddedUtc DESC",
-                             viewerUserId, authorUserId));
+        List<Movie> theirs = new List<Movie>();
+        foreach (Movie movie in LoadAll(viewerUserId))
+            if (movie.AddedByUserId == authorUserId) theirs.Add(movie);
+
+        return SortByNewest(theirs);
     }
+
+    // ----- filtering and ordering ------------------------------------------
+
+    /// <summary>Free-text match over title, cast, director and genre.</summary>
+    public static List<Movie> Match(List<Movie> movies, string term)
+    {
+        if (String.IsNullOrEmpty(term) || term.Trim().Length == 0) return movies;
+
+        string needle = term.Trim();
+        List<Movie> hits = new List<Movie>();
+
+        foreach (Movie movie in movies)
+        {
+            if (Contains(movie.Title, needle) || Contains(movie.Actors, needle) ||
+                Contains(movie.Director, needle) || Contains(movie.Genre, needle) ||
+                Contains(movie.ReleaseYear, needle))
+                hits.Add(movie);
+        }
+
+        return hits;
+    }
+
+    private static bool Contains(string haystack, string needle)
+    {
+        return !String.IsNullOrEmpty(haystack) &&
+               haystack.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    /// <summary>
+    /// Orders a list in place and returns it.
+    /// "recent" (the default), "rating", "title", or "mine" for the viewer's
+    /// own score. Ties fall back to the title so the order never wobbles
+    /// between page loads.
+    /// </summary>
+    public static List<Movie> SortBy(List<Movie> movies, string sort)
+    {
+        switch (sort)
+        {
+            case "rating":
+                movies.Sort(delegate(Movie a, Movie b)
+                {
+                    // Unrated films have an average of 0, so they fall to the bottom.
+                    int byScore = b.FamilyAverage.CompareTo(a.FamilyAverage);
+                    return byScore != 0 ? byScore : ByTitle(a, b);
+                });
+                return movies;
+
+            case "mine":
+                movies.Sort(delegate(Movie a, Movie b)
+                {
+                    int byMine = b.MyStars.CompareTo(a.MyStars);
+                    return byMine != 0 ? byMine : ByTitle(a, b);
+                });
+                return movies;
+
+            case "title":
+                movies.Sort(ByTitle);
+                return movies;
+
+            default:
+                return SortByNewest(movies);
+        }
+    }
+
+    private static List<Movie> SortByNewest(List<Movie> movies)
+    {
+        movies.Sort(delegate(Movie a, Movie b)
+        {
+            int byDate = b.AddedUtc.CompareTo(a.AddedUtc);
+            return byDate != 0 ? byDate : b.MovieId.CompareTo(a.MovieId);
+        });
+        return movies;
+    }
+
+    private static int ByTitle(Movie a, Movie b)
+    {
+        return String.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ----- writing ---------------------------------------------------------
 
     public static int Count()
     {
@@ -132,6 +256,7 @@ public static class MovieRepository
                         Db.Trim((title ?? "").Trim(), 200))
             : Db.Scalar("SELECT MIN(MovieId) FROM Movies WHERE Title = ? AND ReleaseYear = ?",
                         Db.Trim((title ?? "").Trim(), 200), Db.Trim(cleanYear, 12));
+
         return byTitle == null ? 0 : Convert.ToInt32(byTitle);
     }
 

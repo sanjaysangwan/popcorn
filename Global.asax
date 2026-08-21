@@ -26,6 +26,18 @@
         if (error is HttpUnhandledException && error.InnerException != null)
             error = error.InnerException;
 
+        // customErrors is about to redirect to Error.aspx, which is a fresh
+        // request with no access to this exception. Stash the details so an
+        // administrator can be shown what actually happened - shared hosting
+        // has no log to go and read.
+        RememberForDiagnostics(error);
+
+        if (error is System.Web.HttpRequestValidationException)
+        {
+            // Not worth keeping as a diagnostic - it is a typing mistake.
+            ClearDiagnostics();
+        }
+
         // ASP.NET rejects anything that looks like markup in a posted field. That
         // is worth keeping switched on, but a family member typing "I <3 this one"
         // deserves a sentence rather than a yellow error page.
@@ -50,6 +62,41 @@
             Response.Redirect("~/Default.aspx", false);
             Context.ApplicationInstance.CompleteRequest();
         }
+    }
+
+    void RememberForDiagnostics(Exception error)
+    {
+        if (error == null) return;
+        try
+        {
+            if (Session == null) return;
+
+            System.Text.StringBuilder detail = new System.Text.StringBuilder();
+            detail.Append(error.GetType().Name).Append(": ").Append(error.Message);
+
+            for (Exception inner = error.InnerException; inner != null; inner = inner.InnerException)
+                detail.Append("\r\n  caused by ").Append(inner.GetType().Name)
+                      .Append(": ").Append(inner.Message);
+
+            detail.Append("\r\n\r\n").Append(error.StackTrace);
+
+            Session["Popcorn.LastError"] = detail.ToString();
+            Session["Popcorn.LastErrorPath"] = Request == null ? "" : Request.RawUrl;
+            Session["Popcorn.LastErrorWhen"] = DateTime.Now.ToString("HH:mm:ss");
+        }
+        catch
+        {
+            // Session state is not always available this early in the pipeline.
+        }
+    }
+
+    void ClearDiagnostics()
+    {
+        try
+        {
+            if (Session != null) Session.Remove("Popcorn.LastError");
+        }
+        catch { }
     }
 
 </script>

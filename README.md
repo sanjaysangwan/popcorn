@@ -19,7 +19,7 @@ film details pulled from the free **OMDb** API.
 | Poster, synopsis and cast from a free API | `App_Code/OmdbClient.cs` calls OMDb once when a film is added and caches the details in the database, so viewing a film costs no API calls. The free key allows 1,000 lookups a day. |
 | Microsoft Access database | `App_Code/Db.cs` talks to Jet/ACE over `System.Data.OleDb` with parameterised commands throughout. |
 | Everyone sees other members' films and adds their own rating | The **What's New** dashboard lists films somebody else added that you have not scored, each with its own star form. |
-| Final rating is the family average | Nothing is ever stored as a "final" score — `MovieRepository` computes `AVG(Stars)` over the `Ratings` rows on every read, so it is always current. |
+| Final rating is the family average | Nothing is ever stored as a "final" score — `MovieRepository.Assemble` averages the `Ratings` rows on every read, so it is always current. |
 | New films to rate on sign-in | Signing in lands on **What's New**, which is exactly that list. |
 
 ## The pages
@@ -49,6 +49,12 @@ Users ──< Ratings >── Movies
 * A film's headline number is `AVG(Stars)` across that film's rows.
 * Deleting a member or a film clears their ratings too — Access has no
   cascading deletes to lean on, so the repositories do it explicitly.
+* Every query is a plain `SELECT` over one table. Access accepts or rejects
+  correlated sub-selects, aggregates in the field list and ordering by a
+  computed alias depending on whether Jet or ACE is behind it, and a rejection
+  surfaces as a generic error far from its cause. The averages and the
+  viewer's own score are assembled in memory instead, which for a family list
+  costs nothing and is covered by tests.
 
 ## Security
 

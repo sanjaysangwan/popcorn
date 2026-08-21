@@ -35,6 +35,9 @@ public partial class SetupPage : PageBase
     public bool ProviderInstalled { get; private set; }
     public List<string> Providers = new List<string>();
 
+    public string OmdbResult { get; private set; }
+    public string OmdbResultKind { get; private set; }
+
     public List<string> UserColumns = new List<string>();
     public List<string> MovieColumns = new List<string>();
     public List<string> RatingColumns = new List<string>();
@@ -93,9 +96,11 @@ public partial class SetupPage : PageBase
         {
             case "install": Install(); break;
             case "admin": CreateAdministrator(); break;
+            case "omdb": TestOmdb(); break;
         }
 
         Refresh();
+        phOmdb.Visible = !String.IsNullOrEmpty(OmdbResult);
     }
 
     private void Refresh()
@@ -214,6 +219,44 @@ public partial class SetupPage : PageBase
         {
             Message = "The administrator account could not be created: " + ex.Message;
         }
+    }
+
+    /// <summary>
+    /// A live lookup against OMDb. "Search does not work" has three quite
+    /// different causes - no key, a rejected key, or a host that blocks
+    /// outbound web requests - and only an actual call tells them apart.
+    /// </summary>
+    private void TestOmdb()
+    {
+        OmdbResultKind = "error";
+
+        if (!OmdbClient.IsConfigured)
+        {
+            OmdbResult = "No OmdbApiKey is set in web.config, so lookups are switched off. " +
+                         "Movies can still be added by hand.";
+            return;
+        }
+
+        string error;
+        Movie found = OmdbClient.GetByTitle("The Princess Bride", "1987", out error);
+
+        if (found != null)
+        {
+            OmdbResultKind = "success";
+            OmdbResult = "Working. OMDb returned \"" + found.Title + "\" (" + found.ReleaseYear +
+                         "), directed by " + found.Director +
+                         (found.HasPoster ? ", with a poster." : ", but with no poster.");
+            return;
+        }
+
+        OmdbResult = error ?? "The lookup failed without saying why.";
+
+        if (OmdbResult.IndexOf("Invalid API key", StringComparison.OrdinalIgnoreCase) >= 0)
+            OmdbResult += "  Check the key in web.config - a free key has to be activated from " +
+                          "the link in the email OMDb sends you.";
+        else if (OmdbResult.IndexOf("Could not reach", StringComparison.OrdinalIgnoreCase) >= 0)
+            OmdbResult += "  This usually means the host blocks outbound web requests. " +
+                          "DiscountASP.NET support can confirm and enable it.";
     }
 
     private static string ReadProvider()

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 public static class Smoke
 {
@@ -83,6 +84,78 @@ public static class Smoke
         Check(Db.Text(null, 50) == DBNull.Value, "missing optional text is NULL");
         Check(Convert.ToString(Db.Text(" Casablanca ", 50)) == "Casablanca", "optional text is trimmed");
 
+        // --- assembling movies from flat rows ---------------------------------
+        // The family average is never stored: it is recomputed from the
+        // individual ratings every time, right here.
+        System.Data.DataTable movies = MovieTable();
+        AddMovie(movies, 1, "Casablanca", "1942", 2, "Bogart, Bergman", "Curtiz", "Drama",
+                 new DateTime(2026, 1, 1));
+        AddMovie(movies, 2, "The Princess Bride", "1987", 3, "Elwes, Wright", "Reiner", "Comedy",
+                 new DateTime(2026, 3, 1));
+        AddMovie(movies, 3, "Arrival", "2016", 2, "Adams, Renner", "Villeneuve", "Sci-Fi",
+                 new DateTime(2026, 2, 1));
+
+        System.Data.DataTable ratings = RatingTable();
+        AddRating(ratings, 1, 1, 8);   // three members rate Casablanca
+        AddRating(ratings, 1, 2, 9);
+        AddRating(ratings, 1, 3, 4);
+        AddRating(ratings, 2, 1, 6);   // one member rates The Princess Bride
+        // Arrival is unrated
+
+        System.Data.DataTable users = UserTable();
+        AddUser(users, 1, "Sanjay");
+        AddUser(users, 2, "Mum");
+        AddUser(users, 3, "Dad");
+
+        // Viewer is user 3, who rated Casablanca a 4 and nothing else.
+        List<Movie> all = MovieRepository.Assemble(movies, ratings, users, 3);
+        Movie casablanca = Find(all, 1), bride = Find(all, 2), arrival = Find(all, 3);
+
+        Check(all.Count == 3, "every movie comes back");
+        Check(casablanca.RatingCount == 3, "Casablanca has three family ratings");
+        Check(casablanca.FamilyAverageText == "7.0", "8, 9 and 4 average to 7.0");
+        Check(casablanca.MyStars == 4, "the viewer's own score is picked out");
+        Check(casablanca.AddedByName == "Mum", "the member who added it is named");
+        Check(bride.MyStars == 0, "a movie the viewer has not rated shows no score of their own");
+        Check(bride.FamilyAverageText == "6.0", "a single rating is its own average");
+        Check(arrival.RatingCount == 0 && arrival.FamilyAverageText == "-", "unrated stays unrated");
+        Check(!arrival.RatedByMe && casablanca.RatedByMe, "rated-by-me tracks the viewer only");
+
+        // Another viewer sees the same family averages but their own score.
+        List<Movie> asMum = MovieRepository.Assemble(movies, ratings, users, 2);
+        Check(Find(asMum, 1).FamilyAverageText == "7.0", "the family average does not depend on who is looking");
+        Check(Find(asMum, 1).MyStars == 9, "each viewer sees their own score");
+
+        // --- ordering ---------------------------------------------------------
+        List<Movie> byRating = MovieRepository.SortBy(MovieRepository.Assemble(movies, ratings, users, 3), "rating");
+        Check(byRating[0].MovieId == 1 && byRating[1].MovieId == 2, "best family average first");
+        Check(byRating[2].MovieId == 3, "unrated films sink to the bottom");
+
+        List<Movie> byNewest = MovieRepository.SortBy(MovieRepository.Assemble(movies, ratings, users, 3), "recent");
+        Check(byNewest[0].MovieId == 2 && byNewest[2].MovieId == 1, "newest addition first");
+
+        List<Movie> byTitle = MovieRepository.SortBy(MovieRepository.Assemble(movies, ratings, users, 3), "title");
+        Check(byTitle[0].Title == "Arrival" && byTitle[2].Title == "The Princess Bride", "alphabetical by title");
+
+        List<Movie> byMine = MovieRepository.SortBy(MovieRepository.Assemble(movies, ratings, users, 2), "mine");
+        Check(byMine[0].MovieId == 1, "my own highest score first");
+
+        // --- searching --------------------------------------------------------
+        List<Movie> pool = MovieRepository.Assemble(movies, ratings, users, 3);
+        Check(MovieRepository.Match(pool, "princess").Count == 1, "title match ignores case");
+        Check(MovieRepository.Match(pool, "bergman").Count == 1, "cast is searchable");
+        Check(MovieRepository.Match(pool, "villeneuve").Count == 1, "director is searchable");
+        Check(MovieRepository.Match(pool, "Comedy").Count == 1, "genre is searchable");
+        Check(MovieRepository.Match(pool, "1942").Count == 1, "year is searchable");
+        Check(MovieRepository.Match(pool, "zzzz").Count == 0, "no match returns nothing");
+        Check(MovieRepository.Match(pool, "").Count == 3, "an empty search returns everything");
+        Check(MovieRepository.Match(pool, null).Count == 3, "a missing search returns everything");
+
+        // --- empty database, which is what a fresh install looks like ---------
+        List<Movie> nothing = MovieRepository.Assemble(MovieTable(), RatingTable(), UserTable(), 1);
+        Check(nothing.Count == 0, "an empty database assembles to an empty list, not a crash");
+        Check(MovieRepository.SortBy(nothing, "rating").Count == 0, "sorting nothing is fine");
+
         // --- escaping ---------------------------------------------------------
         Movie evil = new Movie();
         evil.MovieId = 1;
@@ -94,6 +167,66 @@ public static class Smoke
 
         Console.WriteLine(failures == 0 ? "\nAll checks passed." : "\n" + failures + " FAILED");
         return failures == 0 ? 0 : 1;
+    }
+
+    // ----- building the flat result sets the repository assembles from -----
+
+    static System.Data.DataTable MovieTable()
+    {
+        System.Data.DataTable t = new System.Data.DataTable();
+        string[] columns = { "MovieId", "Title", "ReleaseYear", "ImdbId", "PosterUrl", "Plot",
+                             "Actors", "Director", "Genre", "Runtime", "MpaaRating", "ImdbScore",
+                             "AddedByUserId", "AddedUtc" };
+        foreach (string c in columns) t.Columns.Add(c, typeof(object));
+        return t;
+    }
+
+    static void AddMovie(System.Data.DataTable t, int id, string title, string year,
+                         int addedBy, string actors, string director, string genre, DateTime added)
+    {
+        System.Data.DataRow row = t.NewRow();
+        row["MovieId"] = id;
+        row["Title"] = title;
+        row["ReleaseYear"] = year;
+        row["Actors"] = actors;
+        row["Director"] = director;
+        row["Genre"] = genre;
+        row["AddedByUserId"] = addedBy;
+        row["AddedUtc"] = added;
+        t.Rows.Add(row);
+    }
+
+    static System.Data.DataTable RatingTable()
+    {
+        System.Data.DataTable t = new System.Data.DataTable();
+        t.Columns.Add("MovieId", typeof(object));
+        t.Columns.Add("UserId", typeof(object));
+        t.Columns.Add("Stars", typeof(object));
+        return t;
+    }
+
+    static void AddRating(System.Data.DataTable t, int movieId, int userId, int stars)
+    {
+        t.Rows.Add(new object[] { movieId, userId, stars });
+    }
+
+    static System.Data.DataTable UserTable()
+    {
+        System.Data.DataTable t = new System.Data.DataTable();
+        t.Columns.Add("UserId", typeof(object));
+        t.Columns.Add("DisplayName", typeof(object));
+        return t;
+    }
+
+    static void AddUser(System.Data.DataTable t, int id, string name)
+    {
+        t.Rows.Add(new object[] { id, name });
+    }
+
+    static Movie Find(List<Movie> movies, int movieId)
+    {
+        foreach (Movie m in movies) if (m.MovieId == movieId) return m;
+        throw new Exception("movie " + movieId + " missing from the assembled list");
     }
 
     // Db.TypeFor rather than Db.MakeParameter: mono has no real OleDb, so an

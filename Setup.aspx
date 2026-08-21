@@ -92,6 +92,27 @@
     </form>
 </div>
 
+<div class="panel form-narrow">
+    <h2>Movie lookups</h2>
+    <p class="hint">
+        Fetches one known film from OMDb and reports exactly what came back.
+    </p>
+
+    <asp:PlaceHolder ID="phOmdb" runat="server" Visible="false">
+        <div class="alert alert-<%= H(OmdbResultKind) %>"><%= H(OmdbResult) %></div>
+    </asp:PlaceHolder>
+
+    <form method="post" action="">
+        <%= Csrf.Field %>
+        <input type="hidden" name="action" value="omdb" />
+        <div class="field">
+            <label for="omdbKey">Setup key</label>
+            <input type="password" id="omdbKey" name="key" required="required" />
+        </div>
+        <button type="submit" class="btn">Test the connection to OMDb</button>
+    </form>
+</div>
+
 <asp:PlaceHolder ID="phSchema" runat="server" Visible="false">
 <div class="panel">
     <h2>What the database actually contains</h2>

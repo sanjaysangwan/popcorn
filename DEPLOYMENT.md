@@ -193,6 +193,18 @@ Check `OmdbApiKey` in `web.config`. If it is right, the host may block
 outbound HTTP; `AddMovie.aspx` reports the exact error it got. `OmdbClient`
 already retries over plain HTTP when HTTPS fails.
 
+**"Something went wrong while loading that page"**
+That is the site's own error page. Sign in as an administrator and make the
+problem happen again — the page then shows the real exception, the statement
+that produced it, and where it happened. There is no log file on shared
+hosting, so this is the log.
+
+**Movie search finds nothing / no posters appear**
+Run **Test the connection to OMDb** on `Setup.aspx`. It fetches one known film
+and tells you which of the three causes you have: no key configured, a key
+OMDb rejects (a free key has to be activated from the link in their email), or
+a host that blocks outbound web requests.
+
 **A yellow ASP.NET error page instead of the site**
 Set `<customErrors mode="Off" />` in `web.config` temporarily to see the real
 message, then put it back to `RemoteOnly`.
