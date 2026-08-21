@@ -8,13 +8,6 @@
     <p>Here is what the rest of the family has been adding.</p>
 </div>
 
-<div class="stat-row">
-    <div class="stat"><div class="n"><%= MovieCount %></div><div class="l">movies on the list</div></div>
-    <div class="stat"><div class="n"><%= MyRatingCount %></div><div class="l">rated by you</div></div>
-    <div class="stat"><div class="n"><%= TotalRatingCount %></div><div class="l">family ratings</div></div>
-    <div class="stat"><div class="n"><%= MemberCount %></div><div class="l">family members</div></div>
-</div>
-
 <h2>New from the family - waiting for your rating</h2>
 <p class="hint">Films someone else added that you have not scored yet. Pick your stars and save.</p>
 

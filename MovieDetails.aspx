@@ -37,8 +37,6 @@
 
         <%= PlotMarkup %>
 
-        <%= Ui.TagList(Film, true) %>
-
         <ul class="detail-facts"><%= FactsMarkup %></ul>
     </div>
 </div>
@@ -78,11 +76,29 @@
 
 <div class="panel">
     <h2>Categories</h2>
-    <p class="hint">
-        Tick everything that fits, or invent a new one. Categories are shared
-        across the whole library and can be searched.
-    </p>
-    <%= Ui.TagEditor(Film, AllTags) %>
+
+    <asp:PlaceHolder ID="phNoTags" runat="server" Visible="false">
+        <p class="hint">Not on any shelf yet.</p>
+    </asp:PlaceHolder>
+
+    <asp:PlaceHolder ID="phTagsList" runat="server" Visible="false">
+        <%= Ui.TagList(Film, true) %>
+    </asp:PlaceHolder>
+
+    <input type="checkbox" id="tagEditorToggle" class="disclosure-toggle"
+           <%= Film.Tags.Count == 0 ? "checked=\"checked\"" : "" %> />
+    <label for="tagEditorToggle" class="disclosure-label">
+        <span class="disclosure-arrow" aria-hidden="true">&#9656;</span>
+        Add or edit categories
+    </label>
+
+    <div class="disclosure-body">
+        <p class="hint">
+            Tick everything that fits, or invent a new one. Categories are shared
+            across the whole library and can be searched.
+        </p>
+        <%= Ui.TagEditor(Film, AllTags) %>
+    </div>
 </div>
 
 <div class="panel">

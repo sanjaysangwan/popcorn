@@ -13,17 +13,30 @@
 
 <div class="app">
 
-    <%-- Side navigation. On a narrow screen the CSS turns this column into a
-         band across the top of the page and the links wrap onto as many rows
-         as they need. --%>
+    <%-- Side navigation. On a narrow screen this becomes a bar with a brand
+         and a menu button; the checkbox below drives a pure-CSS collapse of
+         everything else, so no script is needed to open or close it. The menu
+         starts closed on every page load, which is also how it resets itself
+         after following a link. --%>
     <aside class="sidenav" id="sidenav">
 
-        <div class="brand">
-            <a href="<%= ResolveUrl("~/Default.aspx") %>">
-                <span class="brand-mark" aria-hidden="true">&#127871;</span>
-                <span class="brand-text"><%= H(SiteName) %></span>
-            </a>
+        <input type="checkbox" id="navToggle" class="nav-toggle-input" />
+
+        <div class="sidenav-bar">
+            <div class="brand">
+                <a href="<%= ResolveUrl("~/Default.aspx") %>">
+                    <span class="brand-mark" aria-hidden="true">&#127871;</span>
+                    <span class="brand-text"><%= H(SiteName) %></span>
+                </a>
+            </div>
+            <label for="navToggle" class="nav-toggle-btn" aria-label="Menu">
+                <span aria-hidden="true">&#9776;</span> Menu
+            </label>
         </div>
+
+        <%-- Everything below collapses together on a narrow screen; the
+             checkbox above is its only control. --%>
+        <div class="nav-collapsible">
 
         <% if (CurrentUser != null) { %>
         <div class="whoami">
@@ -70,6 +83,8 @@
             </ul>
         </nav>
         <% } %>
+
+        </div>
 
     </aside>
 

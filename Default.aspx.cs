@@ -8,10 +8,6 @@ using System.Collections.Generic;
 public partial class DefaultPage : PageBase
 {
     public string FirstName { get; private set; }
-    public int MovieCount { get; private set; }
-    public int MyRatingCount { get; private set; }
-    public int TotalRatingCount { get; private set; }
-    public int MemberCount { get; private set; }
 
     protected void Page_Load(object sender, EventArgs e)
     {
@@ -31,11 +27,6 @@ public partial class DefaultPage : PageBase
 
         string[] names = (CurrentUser.DisplayName ?? "").Split(' ');
         FirstName = names.Length > 0 && names[0].Length > 0 ? names[0] : CurrentUser.DisplayName;
-
-        MovieCount = MovieRepository.Count();
-        MyRatingCount = RatingRepository.CountByUser(CurrentUser.UserId);
-        TotalRatingCount = RatingRepository.TotalCount();
-        MemberCount = UserRepository.ActiveMembers().Count;
 
         List<Movie> awaiting = MovieRepository.AwaitingMyRating(CurrentUser.UserId, 24);
         rptAwaiting.DataSource = awaiting;

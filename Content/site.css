@@ -76,6 +76,16 @@ h3 { font-size: 1.05rem; }
 .brand-mark { font-size: 1.6rem; line-height: 1; }
 .brand-text { font-size: 1.25rem; font-weight: 700; letter-spacing: .02em; }
 
+.sidenav-bar { display: flex; align-items: center; justify-content: space-between; }
+
+/* Hidden everywhere; only its :checked state matters. */
+.nav-toggle-input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+
+/* A real button only appears on a narrow screen - see the mobile block below. */
+.nav-toggle-btn { display: none; }
+
+.nav-collapsible { display: contents; }
+
 .whoami {
     display: flex; align-items: center; gap: .6rem;
     padding: .6rem; margin-bottom: 1rem;
@@ -128,7 +138,7 @@ h3 { font-size: 1.05rem; }
     color: var(--text-dim); font-size: .82rem;
 }
 
-/* ----- mobile: the side pane wraps across the top ----------------------- */
+/* ----- mobile: the side pane collapses behind a menu button -------------- */
 
 @media (max-width: 900px) {
     .app { display: block; }
@@ -140,18 +150,42 @@ h3 { font-size: 1.05rem; }
         position: static;
         border-right: 0;
         border-bottom: 1px solid var(--line);
-        padding: .8rem 1rem;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: .5rem 1rem;
+        padding: .7rem 1rem;
     }
 
     .brand { margin: 0; }
-    .whoami { margin: 0; padding: .35rem .6rem; }
-    .whoami-text small { display: none; }
 
-    .nav { flex: 1 1 100%; }
+    /* The button that opens and closes everything below it. Its own state
+       comes entirely from the hidden checkbox next to it in the markup - no
+       script involved. */
+    .nav-toggle-btn {
+        display: inline-flex; align-items: center; gap: .4rem;
+        padding: .45rem .8rem;
+        border: 1px solid var(--line); border-radius: 9px;
+        background: var(--bg-card); color: var(--text);
+        font-size: .88rem; font-weight: 600; cursor: pointer;
+        -webkit-user-select: none; user-select: none;
+    }
+    .nav-toggle-btn:hover { border-color: var(--accent); }
+    .nav-toggle-input:focus + .sidenav-bar .nav-toggle-btn {
+        outline: 2px solid var(--accent); outline-offset: 2px;
+    }
+
+    /* Collapsed by default; the checkbox is the only thing that opens it. */
+    .nav-collapsible {
+        display: block;
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition: max-height .25s ease, opacity .2s ease;
+    }
+    .nav-toggle-input:checked ~ .nav-collapsible {
+        max-height: 640px;
+        opacity: 1;
+        margin-top: .8rem;
+    }
+
+    .whoami { margin: 0 0 .75rem; padding: .5rem .6rem; }
 
     /* the links themselves wrap onto as many rows as the screen needs */
     .nav-list { display: flex; flex-wrap: wrap; gap: .35rem; }
@@ -472,3 +506,32 @@ a.tag:hover, a.tag:focus {
 .tag-choices input:focus + .tag-choice { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .tag-editor .field { max-width: 460px; }
+
+/* ----- disclosure (an "add or edit" section that opens on demand) -------- */
+
+/* A generic, no-script show/hide: a hidden checkbox, a label styled as a
+   link, and the content that follows collapses until the checkbox is
+   checked. Used for the category editor on the movie details page, and
+   reusable anywhere else something should stay out of the way until asked
+   for. */
+.disclosure-toggle { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+
+.disclosure-label {
+    display: inline-flex; align-items: center; gap: .35rem;
+    color: var(--accent); font-size: .88rem; font-weight: 600;
+    cursor: pointer; -webkit-user-select: none; user-select: none;
+}
+.disclosure-label:hover { text-decoration: underline; }
+.disclosure-toggle:focus + .disclosure-label { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.disclosure-arrow { display: inline-block; font-size: .7rem; transition: transform .15s ease-in-out; }
+.disclosure-toggle:checked + .disclosure-label .disclosure-arrow { transform: rotate(90deg); }
+
+.disclosure-body {
+    max-height: 0; overflow: hidden; opacity: 0;
+    transition: max-height .25s ease, opacity .2s ease;
+}
+.disclosure-toggle:checked ~ .disclosure-body {
+    max-height: 800px; opacity: 1; margin-top: .9rem;
+}
+

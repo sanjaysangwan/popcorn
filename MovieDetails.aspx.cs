@@ -242,6 +242,8 @@ public partial class MovieDetailsPage : PageBase
         }
 
         AllTags = TagRepository.All();
+        if (Film.Tags.Count > 0) phTagsList.Visible = true;
+        else phNoTags.Visible = true;
 
         MovieRating mine = RatingRepository.Get(movieId, CurrentUser.UserId);
         if (mine != null) MyReview = mine.Review;
