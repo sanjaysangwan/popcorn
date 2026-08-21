@@ -230,40 +230,22 @@ textarea { min-height: 90px; resize: vertical; }
 .stars-read .on  { color: var(--accent); }
 .stars-read .off { color: #3a4256; }
 
-/* The 1-10 picker: ten pressable labels, each driving a hidden radio button.
-   Spacing comes from margins on the labels rather than flex "gap", which older
-   browsers ignore inside a flex container - that is how a row of these ends up
-   looking like one run-on block. */
-.rating-picker {
-    display: flex;
-    flex-wrap: wrap;
-    margin: .2rem 0 0 -.4rem;
-}
-.rating-picker input {
+/* The 1-10 star picker. Rendered 10 -> 1 and flipped with row-reverse, so that
+   "input:checked ~ label" can light up every star to the left of the chosen
+   one. The radio itself is never drawn - only the stars are. */
+.star-input { display: inline-flex; flex-direction: row-reverse; justify-content: flex-end; }
+.star-input input {
     position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none;
 }
-.rating-picker label {
-    margin: .4rem 0 0 .4rem;
-    min-width: 2.7rem;
-    padding: .5rem .55rem;
-    text-align: center;
-    background: var(--bg-input);
-    border: 1px solid var(--line);
-    border-radius: 9px;
-    color: var(--text);
-    font-size: .95rem;
-    font-weight: 700;
-    line-height: 1;
-    cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
-    transition: background .12s ease-in-out, border-color .12s ease-in-out;
+.star-input label {
+    cursor: pointer; font-size: 1.5rem; line-height: 1; color: #3a4256;
+    padding: 0 1px; transition: color .1s ease-in-out;
+    -webkit-user-select: none; user-select: none;
 }
-.rating-picker label:hover { border-color: var(--accent); color: var(--accent); }
-.rating-picker input:checked + label {
-    background: var(--accent); border-color: var(--accent); color: #241800;
-}
-.rating-picker input:focus + label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.star-input input:checked ~ label { color: var(--accent); }
+.star-input label:hover,
+.star-input label:hover ~ label { color: var(--accent-dark); }
+.star-input input:focus + label { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ----- movie cards ------------------------------------------------------ */
 
@@ -314,7 +296,7 @@ textarea { min-height: 90px; resize: vertical; }
     font-size: .8rem; color: var(--text-dim); font-weight: 600;
 }
 .detail-main .field > label { margin-bottom: .1rem; }
-.btn-rate { margin-top: .85rem; }
+.btn-rate { display: block; margin-top: .8rem; }
 
 /* ----- detail page ------------------------------------------------------ */
 
@@ -459,21 +441,34 @@ a.tag:hover, a.tag:focus {
 .tag-filter .tag { margin-left: .45rem; }
 .tag-clear { margin-left: .6rem; font-size: .85rem; }
 
-/* The tick-box editor on the details page. */
+/* The category chooser. The checkbox is hidden and the label is the control:
+   a light chip when off, filled when on. */
 .tag-choices {
     display: flex; flex-wrap: wrap;
     margin: 0 0 1.1rem -.45rem;
 }
-.tag-choice {
-    display: inline-flex; align-items: center;
-    margin: .45rem 0 0 .45rem;
-    padding: .45rem .8rem;
-    border-radius: 999px;
-    background: var(--bg-input); border: 1px solid var(--line);
-    font-size: .85rem; font-weight: 600; cursor: pointer;
-    -webkit-user-select: none; user-select: none;
+.tag-choices input {
+    position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none;
 }
-.tag-choice:hover { border-color: var(--accent); }
-.tag-choice input { width: auto; margin: 0 .45rem 0 0; }
-.tag-choice input:checked + span { color: var(--accent); }
+.tag-choice {
+    display: inline-block;
+    margin: .45rem 0 0 .45rem;
+    padding: .45rem .95rem;
+    border-radius: 999px;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    font-size: .85rem; font-weight: 600; line-height: 1.5;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    transition: background .12s ease-in-out, border-color .12s ease-in-out,
+                color .12s ease-in-out;
+}
+.tag-choice:hover { border-color: var(--accent); color: var(--accent); }
+.tag-choices input:checked + .tag-choice {
+    background: var(--accent); border-color: var(--accent); color: #241800;
+}
+.tag-choices input:focus + .tag-choice { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .tag-editor .field { max-width: 460px; }

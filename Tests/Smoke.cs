@@ -39,13 +39,30 @@ public static class Smoke
         Check(CountOccurrences(input, "checked=\"checked\"") == 1, "exactly one preselected");
         Check(Ui.StarInput("42", 0).IndexOf("checked") < 0, "unrated picker has nothing selected");
 
-        // Every score is a pressable label showing its number, in reading order,
-        // each tied to its own hidden radio so it still posts without JavaScript.
-        Check(CountOccurrences(input, "<label for=\"s42-") == 10, "every score has its own label");
-        Check(input.Contains(">1</label>") && input.Contains(">10</label>"), "labels show the number");
-        Check(input.IndexOf("value=\"1\"") < input.IndexOf("value=\"10\""), "rendered 1 to 10 in reading order");
-        Check(input.IndexOf("type=\"radio\"") < input.IndexOf("<label"), "each radio precedes its label, for input:checked + label");
+        // Ten pressable stars, no numbers drawn, each tied to its own hidden
+        // radio so it still posts without JavaScript.
+        Check(CountOccurrences(input, "<label for=\"s42-") == 10, "every star has its own label");
+        Check(CountOccurrences(input, "&#9733;") == 10, "the picker draws ten stars");
+        Check(input.IndexOf("value=\"10\"") < input.IndexOf("value=\"1\""), "rendered 10 down to 1 for the CSS");
+        Check(input.IndexOf("type=\"radio\"") < input.IndexOf("<label"), "each radio precedes its label, for input:checked ~ label");
         Check(input.Contains("name=\"stars\""), "still posts as the stars field");
+
+        // The category chooser draws chips, never tick boxes: the checkbox is a
+        // hidden sibling so "input:checked + label" can light the chip up.
+        List<Tag> choices = new List<Tag>();
+        choices.Add(new Tag { TagId = 5, TagName = "Christmas", TagKey = "christmas" });
+        choices.Add(new Tag { TagId = 6, TagName = "Sad", TagKey = "sad" });
+
+        Movie tagMe = new Movie();
+        tagMe.MovieId = 7;
+        tagMe.Tags.Add(choices[0]);
+
+        string editor = Ui.TagEditor(tagMe, choices);
+        Check(CountOccurrences(editor, "class=\"tag-choice\"") == 2, "one chip per category");
+        Check(editor.IndexOf("type=\"checkbox\"") < editor.IndexOf("<label"), "the box precedes its chip, not inside it");
+        Check(CountOccurrences(editor, "checked=\"checked\"") == 1, "only the categories it is in are ticked");
+        Check(editor.Contains(">Christmas</label>"), "the chip is the category name");
+        Check(editor.Contains("name=\"tag\""), "chips post back as the tag field");
 
         // --- averages ---------------------------------------------------------
         Movie m = new Movie();

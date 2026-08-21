@@ -39,19 +39,20 @@ public static class Ui
     }
 
     /// <summary>
-    /// The 1-10 rating picker: ten pressable labels, one per score.
+    /// The 1-10 star picker.
     ///
-    /// Each label drives a hidden radio button, so it posts back as an ordinary
-    /// form field and works with JavaScript switched off - but nothing round or
-    /// tiny is ever drawn, and every label is a comfortable target on a phone.
+    /// Ten pressable stars, each driving a hidden radio button, so it posts
+    /// back as an ordinary form field and works with JavaScript switched off.
     /// </summary>
     public static string StarInput(string groupId, int selected)
     {
         StringBuilder sb = new StringBuilder();
 
-        sb.Append("<span class=\"rating-picker\" role=\"group\" aria-label=\"Your rating out of 10\">");
+        sb.Append("<span class=\"star-input\" role=\"group\" aria-label=\"Your rating out of 10\">");
 
-        for (int i = 1; i <= 10; i++)
+        // Rendered 10 down to 1 and flipped with CSS row-reverse, which is what
+        // lets "input:checked ~ label" light up every star to its left.
+        for (int i = 10; i >= 1; i--)
         {
             string id = "s" + A(groupId) + "-" + i;
 
@@ -61,7 +62,9 @@ public static class Ui
             sb.Append(" />");
 
             sb.Append("<label for=\"").Append(id).Append("\" title=\"")
-              .Append(i).Append(" out of 10\">").Append(i).Append("</label>");
+              .Append(i).Append(" star").Append(i == 1 ? "" : "s")
+              .Append(" out of 10\"><span class=\"sr-only\">").Append(i)
+              .Append(" stars</span>&#9733;</label>");
         }
 
         sb.Append("</span>");
@@ -219,11 +222,17 @@ public static class Ui
         foreach (Tag tag in allTags)
         {
             string id = "tag-" + tag.TagId;
-            sb.Append("<label class=\"tag-choice\" for=\"").Append(id).Append("\">");
+
+            // The box sits before its label rather than inside it, so the label
+            // itself can be lit up from "input:checked + label" - no tick box is
+            // ever drawn, just a chip that presses.
             sb.Append("<input type=\"checkbox\" id=\"").Append(id)
               .Append("\" name=\"tag\" value=\"").Append(A(tag.TagName)).Append("\"");
             if (movie.HasTag(tag.TagKey)) sb.Append(" checked=\"checked\"");
-            sb.Append(" /><span>").Append(E(tag.TagName)).Append("</span></label>");
+            sb.Append(" />");
+
+            sb.Append("<label class=\"tag-choice\" for=\"").Append(id).Append("\">")
+              .Append(E(tag.TagName)).Append("</label>");
         }
         sb.Append("</div>");
 
