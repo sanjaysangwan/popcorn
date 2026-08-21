@@ -10,6 +10,7 @@ public partial class MoviesPage : PageBase
     /// <summary>The category the library is narrowed to, or "" for all of them.</summary>
     public string TagKey { get; private set; }
 
+
     /// <summary>The row of category chips above the list, current one highlighted.</summary>
     public string TagCloud
     {
@@ -38,6 +39,12 @@ public partial class MoviesPage : PageBase
             return sb.ToString();
         }
     }
+
+    /// <summary>The category currently filtered to, written out properly.</summary>
+    public string TagName { get; private set; }
+
+    /// <summary>Back to the whole library, keeping the search and ordering.</summary>
+    public string ClearTagUrl { get { return BaseUrl(""); } }
 
     /// <summary>This page's URL with the same search and ordering, for a given category.</summary>
     private string BaseUrl(string tagKey)
@@ -113,6 +120,13 @@ public partial class MoviesPage : PageBase
             SetFlash(message, ok ? "success" : "error");
             Go(RatingActions.ReturnUrl(Request, "Movies.aspx"));
             return;
+        }
+
+        if (TagKey.Length > 0)
+        {
+            Tag current = TagRepository.GetByKey(TagKey);
+            TagName = current == null ? TagKey : current.TagName;
+            phTagFilter.Visible = true;
         }
 
         List<Movie> movies = MovieRepository.Search(CurrentUser.UserId, Term, Sort, Show, TagKey);

@@ -34,11 +34,18 @@ public static class Smoke
 
         // --- star picker ------------------------------------------------------
         string input = Ui.StarInput("42", 6);
-        Check(CountOccurrences(input, "<input type=\"radio\"") == 10, "picker has 10 radios");
+        Check(CountOccurrences(input, "<input type=\"radio\"") == 10, "picker has 10 scores");
         Check(input.Contains("id=\"s42-6\" value=\"6\" checked=\"checked\""), "current score preselected");
         Check(CountOccurrences(input, "checked=\"checked\"") == 1, "exactly one preselected");
         Check(Ui.StarInput("42", 0).IndexOf("checked") < 0, "unrated picker has nothing selected");
-        Check(input.IndexOf("value=\"10\"") < input.IndexOf("value=\"1\"" ), "rendered 10 down to 1 for the CSS");
+
+        // Every score is a pressable label showing its number, in reading order,
+        // each tied to its own hidden radio so it still posts without JavaScript.
+        Check(CountOccurrences(input, "<label for=\"s42-") == 10, "every score has its own label");
+        Check(input.Contains(">1</label>") && input.Contains(">10</label>"), "labels show the number");
+        Check(input.IndexOf("value=\"1\"") < input.IndexOf("value=\"10\""), "rendered 1 to 10 in reading order");
+        Check(input.IndexOf("type=\"radio\"") < input.IndexOf("<label"), "each radio precedes its label, for input:checked + label");
+        Check(input.Contains("name=\"stars\""), "still posts as the stars field");
 
         // --- averages ---------------------------------------------------------
         Movie m = new Movie();

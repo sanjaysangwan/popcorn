@@ -42,6 +42,13 @@
 
 <div class="tag-cloud"><%= TagCloud %></div>
 
+<asp:PlaceHolder ID="phTagFilter" runat="server" Visible="false">
+    <p class="tag-filter">
+        Showing only <span class="tag is-current"><%= H(TagName) %></span>
+        <a class="tag-clear" href="<%= Attr(ClearTagUrl) %>">clear this category</a>
+    </p>
+</asp:PlaceHolder>
+
 <p class="hint">
     <%= Count %> movie<%= Count == 1 ? "" : "s" %><%= H(ShowCaption) %><%= String.IsNullOrEmpty(Term) ? "" : " matching \"" + H(Term) + "\"" %>.
     <%= WatchedHint %>

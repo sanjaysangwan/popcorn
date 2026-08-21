@@ -20,6 +20,25 @@ public partial class SiteMaster : MasterPage
 
     public string H(string value) { return HttpUtility.HtmlEncode(value ?? ""); }
 
+    /// <summary>
+    /// A cache-busting stamp taken from the file's own timestamp, so uploading
+    /// a new stylesheet is enough for browsers to pick it up. A hand-written
+    /// number here would have to be remembered every single time, and would not
+    /// be - which is exactly what happened to the first version of this.
+    /// </summary>
+    public string AssetVersion(string virtualPath)
+    {
+        try
+        {
+            string path = Server.MapPath(virtualPath);
+            return System.IO.File.GetLastWriteTimeUtc(path).Ticks.ToString();
+        }
+        catch
+        {
+            return "1";
+        }
+    }
+
     /// <summary>Two letters for the little avatar circle in the side pane.</summary>
     public string Initials
     {

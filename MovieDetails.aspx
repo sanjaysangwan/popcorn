@@ -56,7 +56,7 @@
         <input type="hidden" name="movieId" value="<%= Film.MovieId %>" />
 
         <div class="field">
-            <label>Stars</label><br />
+            <label>Your score out of 10</label>
             <%= Ui.StarInput(Film.MovieId.ToString(), Film.MyStars) %>
         </div>
 

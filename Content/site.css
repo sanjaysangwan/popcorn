@@ -230,19 +230,40 @@ textarea { min-height: 90px; resize: vertical; }
 .stars-read .on  { color: var(--accent); }
 .stars-read .off { color: #3a4256; }
 
-/* Radio buttons rendered 10 -> 1 and flipped with row-reverse, so that
-   "input:checked ~ label" can light up every star to the left of the one
-   that is selected. No JavaScript involved. */
-.star-input { display: inline-flex; flex-direction: row-reverse; justify-content: flex-end; }
-.star-input input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.star-input label {
-    cursor: pointer; font-size: 1.5rem; line-height: 1; color: #3a4256;
-    padding: 0 1px; transition: color .1s ease-in-out;
+/* The 1-10 picker: ten pressable labels, each driving a hidden radio button.
+   Spacing comes from margins on the labels rather than flex "gap", which older
+   browsers ignore inside a flex container - that is how a row of these ends up
+   looking like one run-on block. */
+.rating-picker {
+    display: flex;
+    flex-wrap: wrap;
+    margin: .2rem 0 0 -.4rem;
 }
-.star-input input:checked ~ label { color: var(--accent); }
-.star-input label:hover,
-.star-input label:hover ~ label { color: var(--accent-dark); }
-.star-input input:focus + label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rating-picker input {
+    position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none;
+}
+.rating-picker label {
+    margin: .4rem 0 0 .4rem;
+    min-width: 2.7rem;
+    padding: .5rem .55rem;
+    text-align: center;
+    background: var(--bg-input);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: var(--text);
+    font-size: .95rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    transition: background .12s ease-in-out, border-color .12s ease-in-out;
+}
+.rating-picker label:hover { border-color: var(--accent); color: var(--accent); }
+.rating-picker input:checked + label {
+    background: var(--accent); border-color: var(--accent); color: #241800;
+}
+.rating-picker input:focus + label { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ----- movie cards ------------------------------------------------------ */
 
@@ -286,11 +307,14 @@ textarea { min-height: 90px; resize: vertical; }
 .my-score { font-size: .86rem; color: var(--text-dim); margin: .5rem 0 0; }
 
 .rate-form {
-    margin-top: .7rem; padding-top: .7rem; border-top: 1px solid var(--line);
-    display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+    margin-top: .9rem; padding-top: .9rem; border-top: 1px solid var(--line);
 }
-.rate-label { flex: 1 1 100%; font-size: .8rem; color: var(--text-dim); font-weight: 600; }
-.btn-rate { margin-left: auto; }
+.rate-label {
+    display: block; margin-bottom: .1rem;
+    font-size: .8rem; color: var(--text-dim); font-weight: 600;
+}
+.detail-main .field > label { margin-bottom: .1rem; }
+.btn-rate { margin-top: .85rem; }
 
 /* ----- detail page ------------------------------------------------------ */
 
@@ -384,30 +408,72 @@ table.grid th { color: var(--text-dim); font-size: .78rem; text-transform: upper
 
 /* ----- categories (tags) ------------------------------------------------- */
 
-.tag-list { margin: .5rem 0 .25rem; display: flex; flex-wrap: wrap; gap: .3rem; }
-.tag {
-    display: inline-block; padding: .12rem .5rem; border-radius: 999px;
-    background: var(--bg-input); border: 1px solid var(--line);
-    color: var(--text-dim); font-size: .74rem; font-weight: 600;
-    text-decoration: none; line-height: 1.5;
+/* Margins, not flex "gap": older browsers ignore gap inside a flex container,
+   which runs every chip together into one unreadable strip. */
+.tag-list {
+    display: flex; flex-wrap: wrap;
+    margin: .6rem 0 .25rem -.3rem;
 }
-a.tag:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
-.tag.is-current { background: var(--accent); border-color: var(--accent); color: #241800; }
+.tag-list .tag { margin: .3rem 0 0 .3rem; }
 
+.tag {
+    display: inline-flex; align-items: center;
+    padding: .28rem .7rem;
+    border-radius: 999px;
+    background: var(--bg-input);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    font-size: .78rem; font-weight: 600; line-height: 1.5;
+    text-decoration: none; white-space: nowrap;
+}
+a.tag:hover, a.tag:focus {
+    border-color: var(--accent); color: var(--accent);
+    background: var(--bg-card); text-decoration: none;
+}
+.tag.is-current {
+    background: var(--accent); border-color: var(--accent); color: #241800;
+}
+
+/* The count sits behind a divider so "Comedy 3" cannot be misread as a name. */
+.tag-count {
+    margin-left: .5rem; padding-left: .5rem;
+    border-left: 1px solid currentColor;
+    opacity: .6; font-weight: 600;
+}
+
+/* The row of shelves above the library. */
+.tag-cloud {
+    display: flex; flex-wrap: wrap;
+    margin: 0 0 1.25rem -.45rem;
+}
+.tag-cloud .tag {
+    margin: .45rem 0 0 .45rem;
+    padding: .45rem .9rem;
+    font-size: .86rem;
+}
+
+.tag-filter {
+    display: flex; flex-wrap: wrap; align-items: center;
+    margin-bottom: 1rem; font-size: .9rem;
+}
+.tag-filter .tag { margin-left: .45rem; }
+.tag-clear { margin-left: .6rem; font-size: .85rem; }
+
+/* The tick-box editor on the details page. */
 .tag-choices {
-    display: flex; flex-wrap: wrap; gap: .4rem;
-    margin-bottom: 1rem;
+    display: flex; flex-wrap: wrap;
+    margin: 0 0 1.1rem -.45rem;
 }
 .tag-choice {
-    display: inline-flex; align-items: center; gap: .35rem;
-    padding: .3rem .6rem; border-radius: 999px;
+    display: inline-flex; align-items: center;
+    margin: .45rem 0 0 .45rem;
+    padding: .45rem .8rem;
+    border-radius: 999px;
     background: var(--bg-input); border: 1px solid var(--line);
-    font-size: .82rem; font-weight: 600; cursor: pointer; margin: 0;
+    font-size: .85rem; font-weight: 600; cursor: pointer;
+    -webkit-user-select: none; user-select: none;
 }
 .tag-choice:hover { border-color: var(--accent); }
-.tag-choice input { width: auto; margin: 0; }
+.tag-choice input { width: auto; margin: 0 .45rem 0 0; }
+.tag-choice input:checked + span { color: var(--accent); }
 .tag-editor .field { max-width: 460px; }
-
-.tag-cloud { display: flex; flex-wrap: wrap; gap: .45rem; margin-bottom: 1.25rem; }
-.tag-cloud .tag { font-size: .82rem; padding: .3rem .7rem; }
-.tag-count { opacity: .65; font-weight: 400; margin-left: .3rem; }

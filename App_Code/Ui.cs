@@ -39,26 +39,29 @@ public static class Ui
     }
 
     /// <summary>
-    /// The 1-10 star picker. Pure CSS radio buttons, so it works with
-    /// JavaScript switched off and posts back as an ordinary form field.
+    /// The 1-10 rating picker: ten pressable labels, one per score.
+    ///
+    /// Each label drives a hidden radio button, so it posts back as an ordinary
+    /// form field and works with JavaScript switched off - but nothing round or
+    /// tiny is ever drawn, and every label is a comfortable target on a phone.
     /// </summary>
     public static string StarInput(string groupId, int selected)
     {
         StringBuilder sb = new StringBuilder();
-        sb.Append("<span class=\"star-input\">");
 
-        // Rendered 10 down to 1 and flipped with CSS row-reverse, which is what
-        // lets "input:checked ~ label" light up every star to its left.
-        for (int i = 10; i >= 1; i--)
+        sb.Append("<span class=\"rating-picker\" role=\"group\" aria-label=\"Your rating out of 10\">");
+
+        for (int i = 1; i <= 10; i++)
         {
             string id = "s" + A(groupId) + "-" + i;
+
             sb.Append("<input type=\"radio\" name=\"stars\" id=\"").Append(id)
               .Append("\" value=\"").Append(i).Append("\"");
             if (selected == i) sb.Append(" checked=\"checked\"");
             sb.Append(" />");
+
             sb.Append("<label for=\"").Append(id).Append("\" title=\"")
-              .Append(i).Append(" star").Append(i == 1 ? "" : "s")
-              .Append("\"><span class=\"sr-only\">").Append(i).Append(" stars</span>&#9733;</label>");
+              .Append(i).Append(" out of 10\">").Append(i).Append("</label>");
         }
 
         sb.Append("</span>");
@@ -151,9 +154,9 @@ public static class Ui
             if (!String.IsNullOrEmpty(returnUrl))
                 sb.Append("<input type=\"hidden\" name=\"return\" value=\"").Append(A(returnUrl)).Append("\" />");
 
-            sb.Append("<label class=\"rate-label\">")
-              .Append(movie.RatedByMe ? "Your rating" : "Your rating (1-10 stars)")
-              .Append("</label>");
+            sb.Append("<span class=\"rate-label\">")
+              .Append(movie.RatedByMe ? "Your rating out of 10" : "Rate this out of 10")
+              .Append("</span>");
             sb.Append(StarInput(movie.MovieId.ToString(), movie.MyStars));
             sb.Append("<button type=\"submit\" class=\"btn btn-primary btn-rate\">")
               .Append(movie.RatedByMe ? "Update my rating" : "Save my rating")
@@ -188,7 +191,8 @@ public static class Ui
         {
             if (linked)
                 sb.Append("<a class=\"tag\" href=\"Movies.aspx?show=all&amp;tag=")
-                  .Append(HttpUtility.UrlEncode(tag.TagKey)).Append("\">")
+                  .Append(HttpUtility.UrlEncode(tag.TagKey))
+                  .Append("\" title=\"Show every ").Append(A(tag.TagName)).Append(" movie\">")
                   .Append(E(tag.TagName)).Append("</a>");
             else
                 sb.Append("<span class=\"tag\">").Append(E(tag.TagName)).Append("</span>");
