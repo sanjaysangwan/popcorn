@@ -85,8 +85,7 @@
         <%= Ui.TagList(Film, true) %>
     </asp:PlaceHolder>
 
-    <input type="checkbox" id="tagEditorToggle" class="disclosure-toggle"
-           <%= Film.Tags.Count == 0 ? "checked=\"checked\"" : "" %> />
+    <input type="checkbox" id="tagEditorToggle" class="disclosure-toggle" />
     <label for="tagEditorToggle" class="disclosure-label">
         <span class="disclosure-arrow" aria-hidden="true">&#9656;</span>
         Add or edit categories

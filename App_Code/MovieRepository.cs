@@ -160,7 +160,12 @@ public static class MovieRepository
             Db.Query("SELECT UserId, DisplayName FROM Users"),
             viewerUserId);
 
-        return found.Count == 0 ? null : found[0];
+        if (found.Count == 0) return null;
+
+        // Assemble does not know about categories - LoadAll attaches them for
+        // the list views, and a single movie needs the same thing here.
+        found[0].Tags = TagRepository.ForMovie(movieId);
+        return found[0];
     }
 
     /// <summary>
