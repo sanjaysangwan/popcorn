@@ -7,6 +7,12 @@ public partial class MovieDetailsPage : PageBase
     public Movie Film { get; private set; }
     public List<MovieRating> Ratings = new List<MovieRating>();
     public List<Tag> AllTags = new List<Tag>();
+
+    /// <summary>Label on the ratings disclosure - only says "update" once there is one.</summary>
+    public string RateDisclosureLabel
+    {
+        get { return Film != null && Film.RatedByMe ? "Update your rating" : "Rate this movie"; }
+    }
     public string MyReview { get; private set; }
     public string Message { get; private set; }
     public string MessageKind { get; private set; }
@@ -250,6 +256,10 @@ public partial class MovieDetailsPage : PageBase
 
         phUnrate.Visible = Film.RatedByMe;
         phDelete.Visible = CanDelete;
+
+        phMyRatingDisplay.Visible = Film.RatedByMe;
+        phMyReviewText.Visible = Film.RatedByMe && !String.IsNullOrEmpty(MyReview);
+        phNoRatingYet.Visible = !Film.RatedByMe;
         phWatched.Visible = MovieActions.CanManage(Film, CurrentUser);
     }
 

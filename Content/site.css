@@ -322,6 +322,12 @@ textarea { min-height: 90px; resize: vertical; }
 .score-votes { color: var(--text-dim); font-size: .76rem; }
 .my-score { font-size: .86rem; color: var(--text-dim); margin: .5rem 0 0; }
 
+.my-rating-stars { margin: .1rem 0 0; }
+.my-review-text {
+    margin: .6rem 0 0; padding-left: .8rem; border-left: 2px solid var(--line);
+    color: #b9c2d4; font-style: italic; font-size: .92rem;
+}
+
 .rate-form {
     margin-top: .9rem; padding-top: .9rem; border-top: 1px solid var(--line);
 }

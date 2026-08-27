@@ -42,36 +42,56 @@
 </div>
 
 <div class="panel" style="margin-top:1.5rem;">
-    <h2><%= Film.RatedByMe ? "Your rating" : "Add your rating" %></h2>
-    <p class="hint">
-        Everyone in the family scores a movie out of 10; the headline number above is
-        simply the average of those scores.
-    </p>
+    <h2>Your rating</h2>
 
-    <form method="post" action="">
-        <%= Csrf.Field %>
-        <input type="hidden" name="action" value="rate" />
-        <input type="hidden" name="movieId" value="<%= Film.MovieId %>" />
+    <asp:PlaceHolder ID="phMyRatingDisplay" runat="server" Visible="false">
+        <p class="my-rating-stars"><%= Ui.StarDisplay(Film.MyStars, 1) %></p>
+        <asp:PlaceHolder ID="phMyReviewText" runat="server" Visible="false">
+            <p class="my-review-text">&ldquo;<%= H(MyReview) %>&rdquo;</p>
+        </asp:PlaceHolder>
+    </asp:PlaceHolder>
 
-        <div class="field">
-            <label>Stars</label>
-            <%= Ui.StarInput(Film.MovieId.ToString(), Film.MyStars) %>
-        </div>
+    <asp:PlaceHolder ID="phNoRatingYet" runat="server" Visible="false">
+        <p class="hint">You have not rated this yet.</p>
+    </asp:PlaceHolder>
 
-        <div class="field">
-            <label for="review">A few words <span class="hint">(optional)</span></label>
-            <textarea id="review" name="review" maxlength="2000"><%= H(MyReview) %></textarea>
-        </div>
+    <input type="checkbox" id="rateToggle" class="disclosure-toggle" />
+    <label for="rateToggle" class="disclosure-label">
+        <span class="disclosure-arrow" aria-hidden="true">&#9656;</span>
+        <%= H(RateDisclosureLabel) %>
+    </label>
 
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">
-                <%= Film.RatedByMe ? "Update my rating" : "Save my rating" %>
-            </button>
-            <asp:PlaceHolder ID="phUnrate" runat="server" Visible="false">
-                <button type="submit" name="action" value="unrate" class="btn btn-danger">Remove my rating</button>
-            </asp:PlaceHolder>
-        </div>
-    </form>
+    <div class="disclosure-body">
+        <p class="hint">
+            Everyone in the family scores a movie out of 10; the headline number above is
+            simply the average of those scores.
+        </p>
+
+        <form method="post" action="">
+            <%= Csrf.Field %>
+            <input type="hidden" name="action" value="rate" />
+            <input type="hidden" name="movieId" value="<%= Film.MovieId %>" />
+
+            <div class="field">
+                <label>Stars</label>
+                <%= Ui.StarInput(Film.MovieId.ToString(), Film.MyStars) %>
+            </div>
+
+            <div class="field">
+                <label for="review">A few words <span class="hint">(optional)</span></label>
+                <textarea id="review" name="review" maxlength="2000"><%= H(MyReview) %></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <%= Film.RatedByMe ? "Update my rating" : "Save my rating" %>
+                </button>
+                <asp:PlaceHolder ID="phUnrate" runat="server" Visible="false">
+                    <button type="submit" name="action" value="unrate" class="btn btn-danger">Remove my rating</button>
+                </asp:PlaceHolder>
+            </div>
+        </form>
+    </div>
 </div>
 
 <div class="panel">
