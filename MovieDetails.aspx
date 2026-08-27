@@ -41,7 +41,8 @@
     </div>
 </div>
 
-<div class="panel" style="margin-top:1.5rem;">
+<div class="panel-row">
+<div class="panel">
     <h2>Your rating</h2>
 
     <asp:PlaceHolder ID="phMyRatingDisplay" runat="server" Visible="false">
@@ -118,6 +119,7 @@
         </p>
         <%= Ui.TagEditor(Film, AllTags) %>
     </div>
+</div>
 </div>
 
 <div class="panel">

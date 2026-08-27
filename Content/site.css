@@ -208,6 +208,19 @@ h3 { font-size: 1.05rem; }
 }
 .panel h2 { margin-top: 0; }
 
+/* Two panels sharing one row - "Your rating" and "Categories" on the movie
+   details page. Equal halves once there is room for both; each still falls
+   back to full width on its own before it gets cramped, the same auto-wrap
+   used by .stat-row and the movie grid rather than a fixed breakpoint. */
+.panel-row {
+    display: flex; flex-wrap: wrap; gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+.panel-row > .panel {
+    flex: 1 1 320px;
+    margin-bottom: 0;
+}
+
 /* A panel heading that should read as a subhead rather than a section title -
    same tag for accessibility (heading order stays intact for screen readers),
    just sized down to match h3. */
