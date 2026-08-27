@@ -29,9 +29,16 @@ public partial class DefaultPage : PageBase
         FirstName = names.Length > 0 && names[0].Length > 0 ? names[0] : CurrentUser.DisplayName;
 
         List<Movie> awaiting = MovieRepository.AwaitingMyRating(CurrentUser.UserId, 24);
-        rptAwaiting.DataSource = awaiting;
-        rptAwaiting.DataBind();
-        phNothingNew.Visible = awaiting.Count == 0;
+        if (awaiting.Count > 0)
+        {
+            phAwaiting.Visible = true;
+            rptAwaiting.DataSource = awaiting;
+            rptAwaiting.DataBind();
+        }
+        else
+        {
+            phNothingNew.Visible = true;
+        }
 
         // A little "best of" strip, but only once a few ratings exist.
         List<Movie> rated = MovieRepository.Search(CurrentUser.UserId, null, "rating");
