@@ -95,7 +95,7 @@
 </div>
 
 <div class="panel">
-    <h2>Categories</h2>
+    <h2 class="subhead">Categories</h2>
 
     <asp:PlaceHolder ID="phNoTags" runat="server" Visible="false">
         <p class="hint">Not on any shelf yet.</p>

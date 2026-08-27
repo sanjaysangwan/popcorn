@@ -208,6 +208,11 @@ h3 { font-size: 1.05rem; }
 }
 .panel h2 { margin-top: 0; }
 
+/* A panel heading that should read as a subhead rather than a section title -
+   same tag for accessibility (heading order stays intact for screen readers),
+   just sized down to match h3. */
+.panel h2.subhead { font-size: 1.05rem; }
+
 .form-narrow { max-width: 460px; }
 
 .field { margin-bottom: 1rem; }
@@ -436,7 +441,20 @@ table.grid th { color: var(--text-dim); font-size: .78rem; text-transform: upper
     display: flex; flex-wrap: wrap;
     margin: .6rem 0 .25rem -.3rem;
 }
-.tag-list .tag { margin: .3rem 0 0 .3rem; }
+/* Bigger and in the site's accent yellow, since these are what a movie is
+   actually filed under - the quieter grey chip is kept for the browse-all
+   cloud below, where a whole row of them is more of a menu than a label. */
+.tag-list .tag {
+    margin: .35rem 0 0 .35rem;
+    padding: .4rem .95rem;
+    font-size: 1rem;
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.tag-list a.tag:hover, .tag-list a.tag:focus {
+    color: var(--accent-dark); border-color: var(--accent-dark);
+    background: var(--bg-card);
+}
 
 .tag {
     display: inline-flex; align-items: center;
