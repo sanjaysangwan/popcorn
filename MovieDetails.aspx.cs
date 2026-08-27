@@ -7,6 +7,15 @@ public partial class MovieDetailsPage : PageBase
     public Movie Film { get; private set; }
     public List<MovieRating> Ratings = new List<MovieRating>();
     public List<Tag> AllTags = new List<Tag>();
+
+    /// <summary>
+    /// Admin-only line comparing what the database has for this film against
+    /// what the page actually loaded. Exists because "categories are not
+    /// showing" has two entirely different causes that look identical from
+    /// the screen - stale files on the server, or a real data problem - and
+    /// this tells them apart without another round of guessing.
+    /// </summary>
+    public string TagDiagnostics { get; private set; }
     public string MyReview { get; private set; }
     public string Message { get; private set; }
     public string MessageKind { get; private set; }
@@ -81,6 +90,7 @@ public partial class MovieDetailsPage : PageBase
 
         LoadMovie(movieId);
         phMessage.Visible = !String.IsNullOrEmpty(Message);
+        phTagDiag.Visible = !String.IsNullOrEmpty(TagDiagnostics);
     }
 
     /// <summary>Returns true when the request has been redirected.</summary>
@@ -244,6 +254,24 @@ public partial class MovieDetailsPage : PageBase
         AllTags = TagRepository.All();
         if (Film.Tags.Count > 0) phTagsList.Visible = true;
         else phNoTags.Visible = true;
+
+        if (CurrentUser.IsAdmin)
+        {
+            int linked = Convert.ToInt32(
+                Db.Scalar("SELECT COUNT(*) FROM MovieTags WHERE MovieId = ?", movieId) ?? 0);
+
+            TagDiagnostics = "Database has " + linked + " categor" + (linked == 1 ? "y" : "ies") +
+                " linked to this movie. The page loaded " + Film.Tags.Count + ".";
+
+            if (linked != Film.Tags.Count)
+                TagDiagnostics += " Those numbers should match - if they do not, the server is " +
+                    "very likely still running an old copy of MovieRepository.cs. Re-upload it " +
+                    "and reload this page.";
+            else if (linked == 0)
+                TagDiagnostics += " Nothing has actually been tagged onto this film yet.";
+            else
+                TagDiagnostics += " That is correct.";
+        }
 
         MovieRating mine = RatingRepository.Get(movieId, CurrentUser.UserId);
         if (mine != null) MyReview = mine.Review;

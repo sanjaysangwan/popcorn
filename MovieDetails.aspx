@@ -98,6 +98,10 @@
         </p>
         <%= Ui.TagEditor(Film, AllTags) %>
     </div>
+
+    <asp:PlaceHolder ID="phTagDiag" runat="server" Visible="false">
+        <p class="hint tag-diag">&#128269; <%= H(TagDiagnostics) %></p>
+    </asp:PlaceHolder>
 </div>
 
 <div class="panel">
