@@ -507,12 +507,6 @@ a.tag:hover, a.tag:focus {
 
 .tag-editor .field { max-width: 460px; }
 
-.tag-diag {
-    margin-top: 1rem; padding: .5rem .7rem;
-    background: var(--bg-input); border: 1px dashed var(--line); border-radius: 8px;
-    font-size: .78rem; color: var(--text-dim);
-}
-
 /* ----- disclosure (an "add or edit" section that opens on demand) -------- */
 
 /* A generic, no-script show/hide: a hidden checkbox, a label styled as a
